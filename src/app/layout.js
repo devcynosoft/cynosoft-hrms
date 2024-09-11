@@ -13,6 +13,7 @@ import { ToastContainer } from "react-toastify";
 import HeaderComponent from "@/components/header";
 import SidebarComponent from "@/components/sidebar";
 import useIsMobile from "@/utils/useIsMobile";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const cairo = Cairo({ subsets: ["latin"] });
 
@@ -58,6 +59,7 @@ export default function RootLayout({ children }) {
             ) : (
               <LayoutWrapper>{children}</LayoutWrapper>
             )}
+            <SpeedInsights />
           </EmployeeProvider>
         }
       </body>
