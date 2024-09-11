@@ -13,7 +13,6 @@ export async function POST(req) {
       status: 200,
     });
   } catch (error) {
-    console.error("Error posting to Slack:", error);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
     });

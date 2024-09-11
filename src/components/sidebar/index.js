@@ -36,46 +36,16 @@ const SidebarComponent = ({ employeeData }) => {
   };
   const checkinHandler = async () => {
     setIsLoading(true);
-    const today = new Date();
-    const currentTime = new Date();
-
-    // Set the start time to 10:00 AM today
-    const startTime = new Date(today);
-    startTime.setHours(0, 0, 0, 0);
-
-    // Set the end time to 7:00 PM today
-    const endTime = new Date(today);
-    endTime.setHours(23, 59, 59, 999);
-    const { data, error } = await supabase
-      .from("attendance")
-      .select("checkin_time")
-      .eq("supabase_user_id", employeeData?.supabase_user_id)
-      .gte("checkin_time", startTime.toISOString())
-      .lte("checkin_time", endTime.toISOString());
-
-    if (data?.length) {
-      toast.warn("Already Checked In", {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setIsLoading(false);
-      setIsHide(false);
-    } else {
-      const { data: insertData, error: insertError } = await supabase
-        .from("attendance")
-        .insert([
-          {
-            supabase_user_id: employeeData?.supabase_user_id,
-            checkin_time: currentTime.toISOString(),
-          },
-        ]);
-      toast.success(`${employeeData?.name} Successfully Checked In`, {
+    const response = await fetch("/api/checkin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(employeeData),
+    });
+    const result = await response.json();
+    if (response?.status === 200) {
+      toast.success(result?.data, {
         position: "bottom-right",
         autoClose: 5000,
         hideProgressBar: false,
@@ -102,44 +72,63 @@ const SidebarComponent = ({ employeeData }) => {
       } catch (error) {
         console.log(error);
       }
-
-      if (insertError) {
-        console.log(insertError, "insertError");
-        setIsLoading(false);
-      }
+    } else if (response?.status === 201) {
+      toast.warn(result?.data, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setIsLoading(false);
+      setIsHide(false);
+    } else if (response?.status === 401) {
+      toast.error(result?.message, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setIsLoading(false);
+      setIsHide(false);
+      setTimeout(() => {
+        router.push("/hrms/login");
+      }, 1000);
+    } else {
+      toast.error(result?.error, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setIsLoading(false);
+      setIsHide(false);
     }
   };
 
   const checkoutHandler = async () => {
     setcheckoutLoading(true);
-    const today = new Date();
-    const currentTime = new Date();
-
-    const startTime = new Date(today);
-    startTime.setHours(0, 0, 0, 0);
-
-    const { data: attendanceData, error: fetchError } = await supabase
-      .from("attendance")
-      .select("id, checkin_time")
-      .eq("supabase_user_id", employeeData?.supabase_user_id)
-      .gte("checkin_time", startTime.toISOString())
-      .is("checkout_time", null)
-      .single();
-
-    if (attendanceData) {
-      const { data: updateData, error: updateError } = await supabase
-        .from("attendance")
-        .update({
-          checkout_time: currentTime,
-          total_hour: calculateTimeDifference(attendanceData?.checkin_time),
-        })
-        .eq("id", attendanceData?.id);
-      if (updateError) {
-        console.log(updateError, "updateError");
-        setcheckoutLoading(false);
-        setIsHide(false)
-      }
-      toast.success(`${employeeData?.name} Successfully Checked Out`, {
+    const response = await fetch("/api/checkout", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(employeeData),
+    });
+    const result = await response.json();
+    if (response?.status === 200) {
+      toast.success(result?.data, {
         position: "bottom-right",
         autoClose: 5000,
         hideProgressBar: false,
@@ -150,7 +139,7 @@ const SidebarComponent = ({ employeeData }) => {
         theme: "colored",
       });
       setcheckoutLoading(false);
-      setIsHide(false)
+      setIsHide(false);
       try {
         let text = `Checked Out - ${employeeData?.name}`;
         const response = await fetch("/api/slack/checkin", {
@@ -166,8 +155,8 @@ const SidebarComponent = ({ employeeData }) => {
       } catch (error) {
         console.log(error);
       }
-    } else {
-      toast.warn("Already Checked Out", {
+    } else if (response?.status === 201) {
+      toast.warn(result?.data, {
         position: "bottom-right",
         autoClose: 5000,
         hideProgressBar: false,
@@ -178,7 +167,36 @@ const SidebarComponent = ({ employeeData }) => {
         theme: "colored",
       });
       setcheckoutLoading(false);
-      setIsHide(false)
+      setIsHide(false);
+    } else if (response?.status === 401) {
+      toast.error(result?.message, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setcheckoutLoading(false);
+      setIsHide(false);
+      setTimeout(() => {
+        router.push("/hrms/login");
+      }, 1000);
+    } else {
+      toast.error(result?.error, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setcheckoutLoading(false);
+      setIsHide(false);
     }
   };
   const hideHandler = () => {
@@ -196,9 +214,9 @@ const SidebarComponent = ({ employeeData }) => {
       return "Leave Form";
     } else if (pathname?.includes("/employee/attendance/edit/")) {
       return "Attendance Edit Form";
-    }else if (pathname?.includes("/employee/attendance/")) {
+    } else if (pathname?.includes("/employee/attendance/")) {
       return "Employee Attendance";
-    }else {
+    } else {
       return ""; // Default heading
     }
   };
@@ -224,7 +242,9 @@ const SidebarComponent = ({ employeeData }) => {
         </span>
       </div>
 
-      <div className={`${styles.sidebarLayout} ${isHide ? `${styles.show}` : ""}`}>
+      <div
+        className={`${styles.sidebarLayout} ${isHide ? `${styles.show}` : ""}`}
+      >
         <div className={`p-2`}>
           <div className={styles.crossBtn}>
             <Image

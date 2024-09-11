@@ -23,6 +23,19 @@ export async function middleware(req) {
     isValid = isTokenValid(+decryptExpireAt);
   }
 
+  if (pathname.startsWith("/api/") && !isValid) {
+    return new NextResponse(
+      JSON.stringify({
+        error: "Unauthorized",
+        message: "Your session has expired, please log in again.",
+      }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
   if (pathname === "/" || pathname === "/hrms/") {
     if (isValid) {
       return NextResponse.redirect(new URL("/hrms/dashboard", req.url));
@@ -66,5 +79,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/hrms/:path*", "/"],
+  matcher: ["/api/:path*", "/hrms/:path*", "/"],
 };
