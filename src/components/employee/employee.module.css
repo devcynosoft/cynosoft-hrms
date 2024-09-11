@@ -1,0 +1,61 @@
+.box {
+  border: 1px solid lightgray;
+  border-radius: 20px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 20px;
+  color: white;
+  background-color: #0c2d57;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  height: 63px;
+}
+.form {
+  padding-left: 31px;
+  padding-right: 31px;
+  padding-bottom: 31px;
+  padding-top: 28px;
+}
+.field {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-radius: 15px;
+}
+.imgUploadText {
+  width: 150px !important;
+}
+.fieldText {
+  width: 200px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.empImage {
+  object-fit: fill;
+  border-radius: 50%;
+}
+
+@media (max-width: 760px) {
+  .listForm {
+    padding: 0px !important;
+  }
+  .searchField {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .btnCont {
+    justify-content: start !important;
+  }
+  .mainForm {
+    padding-left: 0px;
+    padding-right: 0px;
+  }
+  .form {
+    padding: 10px 10px 10px 10px;
+  }
+}

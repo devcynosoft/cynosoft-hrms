@@ -1,0 +1,97 @@
+.sidebarLayout {
+  width: 265px;
+  height: 100%;
+  background: #0c2d57;
+  position: fixed;
+  /* top: 0; */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+.sidebarLayout.show {
+  left: 0;
+}
+.crossBtn {
+  display: none;
+}
+.profileName {
+  color: white;
+  margin-top: 20px;
+}
+.sideLogo {
+  display: block;
+}
+@media (max-width: 760px) {
+  .sidebarLayout {
+    padding-bottom: 20px;
+    height: -webkit-fill-available;
+    left: -265px; /* Initially hidden */
+    transition: left .5s;
+  }
+  .crossBtn {
+    display: block;
+  }
+  .sideLogo {
+    display: block;
+  }
+  .sidebarLayout {
+    z-index: 22222;
+    /* display: none; */
+  }
+  .hamburgerIcon {
+    display: block !important;
+    padding: 20px;
+  }
+  .center {
+    margin-top: 20px !important;
+  }
+}
+.hamburgerIcon {
+  display: none;
+}
+.center {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+}
+.checkInSection {
+  padding: 20px;
+  padding-left: 33px;
+  padding-right: 33px;
+}
+.bgWhite {
+  background: white !important;
+  color: black !important;
+  border-color: white !important;
+  border-radius: 15px;
+  box-shadow: 0px 8px 1px 0px #041f42;
+  font-size: 15px;
+  width: 87px;
+  height: 30px;
+}
+.sidebarText {
+  color: white;
+  margin-bottom: 50px;
+  padding-top: 15px;
+}
+.sidebarLink {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding-left: 33px;
+  color: white;
+}
+.iconsSpace {
+  margin-right: 27px;
+}
+.sidebarLink:hover {
+  font-size: 18px;
+  color: white;
+}
+.sidebarText a {
+  text-decoration: none;
+}

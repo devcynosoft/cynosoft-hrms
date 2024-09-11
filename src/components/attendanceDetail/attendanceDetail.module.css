@@ -1,0 +1,96 @@
+.datePicker {
+  position: relative;
+  width: 146px;
+}
+.datePicker input {
+  border-radius: 15px;
+  font-size: 15px;
+  width: 146px;
+  background: #0C2D57;
+  color: white;
+  padding: 4px 10px;
+}
+.marginStart {
+  margin-left: 20px;
+}
+
+@media (max-width: 760px) {
+  .listForms {
+    padding: 0px;
+  }
+  .datePicker {
+    display: block;
+    left: 0px;
+    width: 120px;
+  }
+  .marginStart {
+    margin-left: 10px;
+  }
+  .datePicker input {
+    width: 120px;
+    font-size: 13px;
+  }
+}
+
+/* attendace edit */
+
+.title {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 36px;
+}
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.form {
+  position: relative;
+  border-radius: 25px;
+  padding-top: 42px;
+  padding-bottom: 42px;
+  padding-left: 33px;
+  width: 60%;
+  padding-right: 71px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+.ballsImage {
+  position: absolute;
+  right: -42px;
+  top: -50px;
+}
+.text {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.datePickers {
+  position: relative;
+  /* left: 90px; */
+  /* width: 146px; */
+}
+.datePickers input {
+  font-size: 15px;
+  width: 100% !important;
+  /* width: 146px; */
+  /* background: #0C2D57; */
+  /* color: white; */
+  padding-left: 10px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.leaveSelect {
+  width: 100% !important;
+}
+
+.leaveSelect__menu {
+  z-index: 2 !important;
+}
+@media (max-width: 760px) {
+  .form {
+    width: 100% !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+}

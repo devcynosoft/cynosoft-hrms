@@ -1,0 +1,22 @@
+.header {
+    /* padding-left: 18px;
+    padding-right: 36px;
+    padding-top: 15px; */
+    padding: 20px;
+    align-items: center;
+    z-index: 1000;
+    /* position: relative; */
+    display: block;
+    width: calc(100% - 265px);
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 80px;
+    padding-right: 50px;
+  }
+  @media (max-width: 760px) {
+    .header {
+      display: none !important;
+    }
+  }
+  

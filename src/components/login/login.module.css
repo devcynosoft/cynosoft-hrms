@@ -1,0 +1,72 @@
+.heading {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 36.31px;
+}
+/* .leftPortion{
+    padding-left: 96px;
+} */
+.loginCard {
+  width: 417px;
+  height: 459px;
+  border-radius: 30px;
+  position: relative;
+  border: 1px solid gray;
+}
+.resetCard {
+  height: 390px;
+  border-radius: 30px;
+  position: relative;
+  border: 1px solid gray;
+  width: 417px;
+}
+.loginHere {
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 24.2px;
+  color: #0c2d57;
+  margin-top: 35px;
+}
+.logo {
+  padding-left: 18px;
+  padding-top: 17px;
+}
+
+.container {
+  margin-top: 50px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.form {
+  padding-top: 40px;
+  padding-left: 57px;
+  padding-right: 57px;
+}
+.fieldText {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 18.15px;
+  color: #0c2d57;
+}
+
+.field {
+  height: 44px;
+  border-radius: 15px;
+  padding-left: 10px;
+}
+.ballsImage {
+  position: absolute;
+  right: -57px;
+  top: -47px;
+}
+@media (max-width: 760px) {
+  .ballsImage {
+    position: absolute;
+    right: -20px;
+    top: -29px;
+  }
+  .form {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

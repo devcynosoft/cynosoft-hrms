@@ -1,0 +1,57 @@
+.dashTitle {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.datePicker {
+  position: relative;
+  /* left: 90px; */
+  width: 146px;
+}
+.marginStart {
+  margin-left: 20px;
+}
+.datePicker input {
+  border-radius: 15px;
+  font-size: 15px;
+  width: 146px;
+  background: #0C2D57;
+  color: white;
+  padding: 4px 10px;
+}
+.cardScrolling {
+  max-height: 63vh;
+  overflow-x: hidden;
+}
+.cardScrolling::-webkit-scrollbar {
+  display: none;
+}
+.cardScrolling {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+@media (max-width: 760px) {
+  .datePicker {
+    display: block;
+    left: 0px;
+    width: 120px;
+  }
+  .colHeight {
+    height: auto;
+    margin-top: 20px;
+  }
+  .marginStart {
+    margin-left: 10px;
+  }
+  .datePicker input {
+    width: 120px;
+    font-size: 13px;
+  }
+
+  .cardScrolling {
+    overflow-x: hidden;
+  }
+}
+
+
