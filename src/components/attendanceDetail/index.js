@@ -1,5 +1,4 @@
 "use client";
-import { supabase } from "@/utils/supabaseClient";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import DynamicTable from "../table";
@@ -21,44 +20,33 @@ const AttendanceDetailComponent = () => {
   const [recordsPerPage, setRecordsPerPage] = useState(5);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const getEmployeeDetail = async () => {
+    const getEmployeeAttendance = async () => {
       const startOfToday = new Date(startDate);
       startOfToday.setHours(0, 0, 0, 0);
 
       const endOfToday = new Date(endDate);
       endOfToday.setHours(23, 59, 59, 999);
+
       const start = (currentPage - 1) * recordsPerPage;
       const end = start + recordsPerPage - 1;
-      let query = supabase
-        .from("attendance")
-        .select(
-          `
-        id, 
-        checkin_time, 
-        checkout_time, 
-        total_hour, 
-        employees(name)
-      `
-        )
-        .eq("employees.is_current", true)
-        .not("employees", "is", null)
-        .order("checkin_time", { ascending: false })
-        .range(start, end);
-      if (name) {
-        query = query.ilike("employees.name", `%${name}%`);
-      }
-      if (startDate) {
-        query = query.gte("checkin_time", `${startOfToday.toISOString()}`);
-      }
-      if (endDate) {
-        query = query.lte("checkin_time", `${endOfToday.toISOString()}`);
-      }
-      const { data, error } = await query;
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/attendance/get-all?start=${start}&end=${end}&name=${name}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      if (data) {
-        const formattedData = data?.map((att, index) => ({
+      const result = await response.json();
+
+      if (response.status === 200) {
+        const formattedData = result?.data?.data?.map((att, index) => ({
           id: att?.id,
           date: att?.checkin_time
             ? moment(att?.checkin_time).format("YYYY-MM-DD")
@@ -72,32 +60,12 @@ const AttendanceDetailComponent = () => {
             : "",
           hour: att?.total_hour,
         }));
+        setIsLoading(false);
         setEmployeeData(formattedData);
+        setTotalRecord(result?.data?.count);
       }
-      let secndQuery = supabase
-        .from("attendance")
-        .select(`id, employees!inner(name)`, { count: "exact", head: true })
-        .eq("employees.is_current", true);
-      if (name) {
-        secndQuery = secndQuery.ilike("employees.name", `%${name}%`);
-      }
-      if (startDate) {
-        secndQuery = secndQuery.gte(
-          "checkin_time",
-          `${startOfToday.toISOString()}`
-        );
-      }
-      if (endDate) {
-        secndQuery = secndQuery.lte(
-          "checkin_time",
-          `${endOfToday.toISOString()}`
-        );
-      }
-      const { count } = await secndQuery;
-
-      if (count) setTotalRecord(count);
     };
-    getEmployeeDetail();
+    getEmployeeAttendance();
   }, [currentPage, recordsPerPage, name, startDate, endDate]);
 
   const configData = [
@@ -135,7 +103,10 @@ const AttendanceDetailComponent = () => {
   return (
     <div className="mainContainer">
       <div className={styles.listForms}>
-        <span className="d-none d-sm-block" style={{ fontSize: "30px", fontWeight: "700" }}>
+        <span
+          className="d-none d-sm-block"
+          style={{ fontSize: "30px", fontWeight: "700" }}
+        >
           Employee Attendance
         </span>
         <div className="d-flex justify-content-between align-items-sm-start mt-4 align-items-md-center mb-3 flex-md-row flex-column">
@@ -203,6 +174,7 @@ const AttendanceDetailComponent = () => {
           setRecordsPerPage={setRecordsPerPage}
           onIconClick={handleIconClick}
           tableHeight={isMobile ? "46" : "50"}
+          isLoading={isLoading}
         />
       </div>
     </div>

@@ -1,7 +1,27 @@
+import { DecryptData } from "@/utils/encrypt";
 import { supabase } from "@/utils/supabaseClient";
 import calculateTimeDifference from "@/utils/timeDifference";
+import isTokenValid from "@/utils/tokenValidation";
 
 export async function PATCH(req) {
+  let isValid = false;
+  let decryptExpireAt;
+  const encryptExpireAt = req.cookies.get("expires_at");
+  if (encryptExpireAt) {
+    decryptExpireAt = DecryptData(encryptExpireAt.value);
+    isValid = isTokenValid(+decryptExpireAt);
+  }
+  if (!isValid) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Your session has expired, please log in again.",
+      }),
+      {
+        status: 401,
+      }
+    );
+  }
   try {
     const employeeData = await req.json();
     const today = new Date();

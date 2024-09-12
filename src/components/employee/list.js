@@ -1,5 +1,4 @@
 "use client";
-import { supabase } from "@/utils/supabaseClient";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
@@ -18,40 +17,30 @@ const EmployeeListComponent = () => {
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(5);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const getEmployeeDetail = async () => {
       const start = (currentPage - 1) * recordsPerPage;
       const end = start + recordsPerPage - 1;
-      let query = supabase
-        .from("employees")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(start, end);
-      if (name) {
-        query = query.ilike("name", `%${name}%`);
-      }
-      if (jobStatus) {
-        if (jobStatus?.value !== "all") {
-          query = query.eq("is_current", jobStatus.value);
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/employee/get-all?start=${start}&end=${end}&name=${name}&jobStatus=${JSON.stringify(
+          jobStatus
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
+      );
+      const result = await response.json();
+      if (response?.status === 200) {
+        setIsLoading(false);
+        setEmployeeData(result?.data?.data);
+        setTotalRecord(result?.data?.count);
       }
-      const { data, error } = await query;
-      if (data) {
-        setEmployeeData(data);
-      }
-      let secndQuery = supabase
-        .from("employees")
-        .select("*", { count: "exact", head: true })
-        .ilike("name", `%${name}%`);
-      if (jobStatus) {
-        if (jobStatus?.value !== "all") {
-          secndQuery = secndQuery.eq("is_current", jobStatus.value);
-        }
-      }
-      const { count } = await secndQuery;
-
-      if (count) setTotalRecord(count);
     };
     getEmployeeDetail();
   }, [currentPage, recordsPerPage, name, jobStatus]);
@@ -94,7 +83,9 @@ const EmployeeListComponent = () => {
   return (
     <div className="mainContainer">
       <div className={styles.listForm}>
-        <span style={{ fontSize: "30px", fontWeight: "700" }}>Employee List</span>
+        <span style={{ fontSize: "30px", fontWeight: "700" }}>
+          Employee List
+        </span>
         <div
           className={`${styles.searchField} d-flex justify-content-between mt-4 align-items-center`}
         >
@@ -145,6 +136,7 @@ const EmployeeListComponent = () => {
             setRecordsPerPage={setRecordsPerPage}
             onIconClick={handleIconClick}
             tableHeight={isMobile ? "46" : "50"}
+            isLoading={isLoading}
           />
         </div>
       </div>

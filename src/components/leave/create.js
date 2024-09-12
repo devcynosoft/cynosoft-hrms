@@ -12,6 +12,7 @@ import { useEmployee } from "@/context/EmployeeContext";
 import { useRouter } from "next/navigation";
 import CalculateDaysDifference from "@/utils/daysDifference";
 import useIsMobile from "@/utils/useIsMobile";
+import ButtonLoader from "../ButtonLoader";
 
 const LeaveCreateComponent = ({ leaveId }) => {
   const {
@@ -28,28 +29,33 @@ const LeaveCreateComponent = ({ leaveId }) => {
   const [selectedLeaveType, setSelectedLeaveType] = useState(null);
   const [isApplicable, setIsApplicable] = useState(true);
   const [leavesUsed, setLeavesUsed] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const getSingleLeaveData = async () => {
-      try {
-        let query = supabase.from("leaves").select("*").eq("id", leaveId);
-        if (employeeData?.role !== "admin") {
-          query = query.eq("supabase_user_id", employeeData?.supabase_user_id);
+      const response = await fetch(
+        `/api/leave/get-all?leaveId=${leaveId}&userId=${
+          employeeData?.role !== "admin" ? employeeData?.supabase_user_id : null
+        }`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-        const { data, error } = await query;
-        if (error) {
-          console.error("Error fetching leave data:", error);
-        }
+      );
+      const result = await response.json();
+      if (response?.status === 200) {
         reset({
-          leave_type: data?.[0]?.leave_type || "",
-          start_date: data?.[0]?.start_date
-            ? new Date(data?.[0]?.start_date)
+          leave_type: result?.data?.[0]?.leave_type || "",
+          start_date: result?.data?.[0]?.start_date
+            ? new Date(result?.data?.[0]?.start_date)
             : null,
-          end_date: data?.[0]?.end_date ? new Date(data?.[0]?.end_date) : null,
-          content: data?.[0]?.content || "",
+          end_date: result?.data?.[0]?.end_date
+            ? new Date(result?.data?.[0]?.end_date)
+            : null,
+          content: result?.data?.[0]?.content || "",
         });
-      } catch (error) {
-        console.log(error);
       }
     };
     if (leaveId || employeeData) {
@@ -109,6 +115,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
   }, [employeeData, selectedLeaveType]);
 
   const onSubmit = async (leaveData) => {
+    setIsLoading(true);
     const { content, end_date, leave_type, start_date } = leaveData;
     const leaveDays = CalculateDaysDifference(start_date, end_date);
     const leaveTypes = {
@@ -128,54 +135,35 @@ const LeaveCreateComponent = ({ leaveId }) => {
         progress: undefined,
         theme: "colored",
       });
+      setIsLoading(false);
     } else {
       try {
         if (leaveId) {
-          let query = supabase
-            .from("leaves")
-            .update({
-              leave_type,
-              start_date,
-              end_date,
-              content,
-              duration: leaveDays,
-            })
-            .eq("id", leaveId);
-          if (employeeData?.role !== "admin") {
-            query = query.eq(
-              "supabase_user_id",
-              employeeData?.supabase_user_id
-            );
-          }
-          const { data: updateData, error: updateError } = await query;
-
-          if (updateError) {
-            console.log(updateError, "updateError");
-          }
-          toast.success(`Successfully leave updated`, {
-            position: "bottom-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "colored",
-          });
-          setTimeout(() => {
-            router.push("/hrms/employee/leave/list");
-          }, 500);
-        } else {
-          const { error } = await supabase.from("leaves").insert({
+          const leaveData = {
             leave_type,
             start_date,
             end_date,
             content,
             duration: leaveDays,
-            supabase_user_id: employeeData?.supabase_user_id,
-          });
-          if (error) {
-            toast.error(error?.message, {
+          };
+          const response = await fetch(
+            `/api/leave/upsert?leaveId=${leaveId}&userId=${
+              employeeData?.role !== "admin"
+                ? employeeData?.supabase_user_id
+                : null
+            }`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(leaveData),
+            }
+          );
+          const result = await response.json();
+          if (response.status === 200) {
+            setIsLoading(false);
+            toast.success(`Successfully leave updated`, {
               position: "bottom-right",
               autoClose: 5000,
               hideProgressBar: false,
@@ -185,7 +173,41 @@ const LeaveCreateComponent = ({ leaveId }) => {
               progress: undefined,
               theme: "colored",
             });
+            setTimeout(() => {
+              router.push("/hrms/employee/leave/list");
+            }, 500);
           } else {
+            setIsLoading(false);
+            toast.error(result.error, {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
+          }
+        } else {
+          const leaveData = {
+            leave_type,
+            start_date,
+            end_date,
+            content,
+            duration: leaveDays,
+            supabase_user_id: employeeData?.supabase_user_id,
+          };
+          const response = await fetch("/api/leave/upsert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(leaveData),
+          });
+          const result = await response.json();
+          if (response.status === 200) {
+            setIsLoading(false);
             toast.success("Successfully Leave Submitted", {
               position: "bottom-right",
               autoClose: 5000,
@@ -199,6 +221,18 @@ const LeaveCreateComponent = ({ leaveId }) => {
             setTimeout(() => {
               router.push("/hrms/employee/leave/list");
             }, 500);
+          } else {
+            setIsLoading(false);
+            toast.error(result.error, {
+              position: "bottom-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
           }
         }
       } catch (error) {
@@ -374,9 +408,9 @@ const LeaveCreateComponent = ({ leaveId }) => {
                 variant="primary"
                 size="md"
                 type="submit"
-                disabled={!isApplicable}
+                disabled={!isApplicable || isLoading}
               >
-                Apply
+                {isLoading ? <ButtonLoader /> : "Apply"}
               </Button>
             </div>
           </div>

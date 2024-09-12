@@ -25,6 +25,7 @@ function AttendanceComponent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(5);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const getEmployeeDetail = async () => {
@@ -35,31 +36,19 @@ function AttendanceComponent() {
       endOfToday.setHours(23, 59, 59, 999);
       const start = (currentPage - 1) * recordsPerPage;
       const end = start + recordsPerPage - 1;
-      let query = supabase
-        .from("attendance")
-        .select(
-          `
-        id, 
-        checkin_time, 
-        checkout_time, 
-        total_hour, 
-        employees(name)
-      `
-        )
-        .eq("supabase_user_id", employeeData?.supabase_user_id)
-        .order("checkin_time", { ascending: false })
-        .eq("employees.is_current", true)
-        .range(start, end);
-      if (startDate) {
-        query = query.gte("checkin_time", `${startOfToday.toISOString()}`);
-      }
-      if (endDate) {
-        query = query.lte("checkin_time", `${endOfToday.toISOString()}`);
-      }
-      const { data, error } = await query;
-
-      if (data) {
-        const formattedData = data?.map((att, index) => ({
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        const formattedData = result?.data?.data?.map((att, index) => ({
           id: att?.id,
           date: att?.checkin_time
             ? moment(att?.checkin_time).format("YYYY-MM-DD")
@@ -72,29 +61,10 @@ function AttendanceComponent() {
             : "",
           hour: att?.total_hour,
         }));
-
+        setIsLoading(false);
         setAttendanceList(formattedData);
+        setTotalRecord(result?.data?.count);
       }
-      let secndQuery = supabase
-        .from("attendance")
-        .select(`id, employees!inner(name)`, { count: "exact", head: true })
-        .eq("supabase_user_id", employeeData?.supabase_user_id)
-        .eq("employees.is_current", true);
-      if (startDate) {
-        secndQuery = secndQuery.gte(
-          "checkin_time",
-          `${startOfToday.toISOString()}`
-        );
-      }
-      if (endDate) {
-        secndQuery = secndQuery.lte(
-          "checkin_time",
-          `${endOfToday.toISOString()}`
-        );
-      }
-      const { count } = await secndQuery;
-
-      if (count) setTotalRecord(count);
     };
     if (employeeData) {
       getEmployeeDetail();
@@ -168,47 +138,57 @@ function AttendanceComponent() {
   //     .eq("supabase_user_id", employeeData?.supabase_user_id)
   //     .order("checkin_time", { ascending: false })
   //     .eq("employees.is_current", true);
-
-  //   console.log(data, "data");
   //   generateAttendancePdf(data);
   // };
   const filteredPdfHandler = async () => {
-    if (startDate || endDate) {
-      setPdfLoading(true);
-      const startOfToday = new Date(startDate);
-      startOfToday.setHours(0, 0, 0, 0);
+    try {
+      if (startDate || endDate) {
+        setPdfLoading(true);
+        const startOfToday = new Date(startDate);
+        startOfToday.setHours(0, 0, 0, 0);
 
-      const endOfToday = new Date(endDate);
-      endOfToday.setHours(23, 59, 59, 999);
+        const endOfToday = new Date(endDate);
+        endOfToday.setHours(23, 59, 59, 999);
 
-      let query = supabase
-        .from("attendance")
-        .select(
-          `
-        id, 
-        checkin_time, 
-        checkout_time, 
-        total_hour, 
-        employees(name)
-      `
-        )
-        .eq("supabase_user_id", employeeData?.supabase_user_id)
-        .order("checkin_time", { ascending: false })
-        .eq("employees.is_current", true);
-
-      if (startDate) {
-        query = query.gte("checkin_time", `${startOfToday.toISOString()}`);
+        const response = await fetch(
+          `/api/attendance/get-all?user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const result = await response.json();
+        if (response.status === 200) {
+          generateAttendancePdf(result?.data?.data);
+        } else {
+          toast.error(`Something went wrong`, {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+        }
+        setPdfLoading(false);
+      } else {
+        toast.error(`Please select filters`, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
       }
-      if (endDate) {
-        query = query.lte("checkin_time", `${endOfToday.toISOString()}`);
-      }
-
-      const { data, error } = await query;
-
-      generateAttendancePdf(data);
-      setPdfLoading(false);
-    } else {
-      toast.error(`Please select filters`, {
+    } catch (error) {
+      toast.error(`Something went wrong`, {
         position: "bottom-right",
         autoClose: 5000,
         hideProgressBar: false,
@@ -224,7 +204,10 @@ function AttendanceComponent() {
   return (
     <div className="mainContainer">
       <div className={styles.listForms}>
-        <span className="d-none d-sm-block" style={{ fontSize: "30px", fontWeight: "700" }}>
+        <span
+          className="d-none d-sm-block"
+          style={{ fontSize: "30px", fontWeight: "700" }}
+        >
           My Attendance
         </span>
         <div className="d-flex justify-content-between align-items-sm-start mt-4 align-items-md-center mb-3 flex-md-row flex-column">
@@ -281,6 +264,7 @@ function AttendanceComponent() {
           setCurrentPage={setCurrentPage}
           setRecordsPerPage={setRecordsPerPage}
           tableHeight={isMobile ? "46" : "50"}
+          isLoading={isLoading}
         />
       </div>
     </div>

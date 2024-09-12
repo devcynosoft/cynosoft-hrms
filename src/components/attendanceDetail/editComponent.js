@@ -12,6 +12,7 @@ import moment from "moment";
 import calculateTimeDifference from "@/utils/timeDifference";
 import DatePicker from "react-datepicker";
 import Image from "next/image";
+import ButtonLoader from "../ButtonLoader";
 
 const AttendanceEditComponent = ({ attendId }) => {
   const {
@@ -51,36 +52,31 @@ const AttendanceEditComponent = ({ attendId }) => {
 
   useEffect(() => {
     const getSingleAttendanceData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("attendance")
-          .select(
-            `
-        id, 
-        checkin_time, 
-        checkout_time, 
-        total_hour, 
-        created_at,
-        employees(name)
-      `
-          )
-          .eq("id", attendId);
-        if (error) {
-          console.error("Error fetching leave data:", error);
+      const response = await fetch(
+        `/api/attendance/get-all?attendId=${attendId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
+      );
+      const result = await response.json();
+      if (response?.status === 200) {
         reset({
-          name: data?.[0]?.employees?.name || "",
+          name: result?.data?.[0]?.employees?.name || "",
           checkin_time: moment
-            .utc(data?.[0]?.checkin_time)
+            .utc(result?.data?.[0]?.checkin_time)
             .local()
             .format("hh:mm:ss A"),
-          checkout_time: data?.[0]?.checkout_time
-            ? moment.utc(data?.[0]?.checkout_time).local().format("hh:mm:ss A")
+          checkout_time: result?.data?.[0]?.checkout_time
+            ? moment
+                .utc(result?.data?.[0]?.checkout_time)
+                .local()
+                .format("hh:mm:ss A")
             : null,
-          date: moment(data?.[0]?.checkin_time).format("YYYY-MM-DD"),
+          date: moment(result?.data?.[0]?.checkin_time).format("YYYY-MM-DD"),
         });
-      } catch (error) {
-        console.log(error);
       }
     };
     if (attendId) {
@@ -106,23 +102,28 @@ const AttendanceEditComponent = ({ attendId }) => {
       checkout_time,
       moment(date).format("YYYY-MM-DD")
     );
+
     if (attendId) {
-      try {
-        const { data: updateData, error: updateError } = await supabase
-          .from("attendance")
-          .update({
-            checkin_time: dbCheckinTime,
-            checkout_time: checkout_time ? dbCheckoutTime : null,
-            total_hour:
-              checkin_time && checkout_time
-                ? calculateTimeDifference(dbCheckinTime, dbCheckoutTime)
-                : "",
-          })
-          .eq("id", attendId);
-        if (updateError) {
-          console.log(updateError, "updateError");
-          setIsLoading(false);
+      let atendData = {
+        checkin_time: dbCheckinTime,
+        checkout_time: checkout_time ? dbCheckoutTime : null,
+        total_hour:
+          checkin_time && checkout_time
+            ? calculateTimeDifference(dbCheckinTime, dbCheckoutTime)
+            : "",
+      };
+      const response = await fetch(
+        `/api/attendance/upsert?attendId=${attendId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(atendData),
         }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
         toast.success(`${name} attendance successfully updated`, {
           position: "bottom-right",
           autoClose: 5000,
@@ -137,30 +138,35 @@ const AttendanceEditComponent = ({ attendId }) => {
         setTimeout(() => {
           router.push("/hrms/employee/attendance");
         }, 500);
-      } catch (error) {
-        console.log(error);
+      } else {
         setIsLoading(false);
+        toast.error(result.error, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
       }
     } else {
-      try {
-        const { data: attendanceData, error: attendanceError } = await supabase
-          .from("attendance")
-          .insert([
-            {
-              supabase_user_id: name.value,
-              checkin_time: dbCheckinTime,
-              checkout_time: dbCheckoutTime,
-              total_hour: calculateTimeDifference(
-                dbCheckinTime,
-                dbCheckoutTime
-              ),
-            },
-          ]);
-        if (attendanceError) {
-          setIsLoading(false);
-          console.log(attendanceError);
-          return;
-        }
+      let atendData = {
+        supabase_user_id: name.value,
+        checkin_time: dbCheckinTime,
+        checkout_time: dbCheckoutTime,
+        total_hour: calculateTimeDifference(dbCheckinTime, dbCheckoutTime),
+      };
+      const response = await fetch("/api/attendance/upsert", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(atendData),
+      });
+      const result = await response.json();
+      if (response.status === 200) {
         toast.success(`${name.label} attendance successfully added`, {
           position: "bottom-right",
           autoClose: 5000,
@@ -175,8 +181,18 @@ const AttendanceEditComponent = ({ attendId }) => {
         setTimeout(() => {
           router.push("/hrms/employee/attendance");
         }, 500);
-      } catch (error) {
+      } else {
         setIsLoading(false);
+        toast.error(result.error, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
       }
     }
   };
@@ -190,7 +206,7 @@ const AttendanceEditComponent = ({ attendId }) => {
           </span>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-        <div className={`${styles.ballsImage} d-none d-md-block`}>
+          <div className={`${styles.ballsImage} d-none d-md-block`}>
             <Image
               src="/assets/images/round-balls.png"
               alt="Ball Pic"
@@ -373,7 +389,7 @@ const AttendanceEditComponent = ({ attendId }) => {
                 type="submit"
                 disabled={isLoading}
               >
-                {attendId ? "Update" : "Create"}
+                {isLoading ? <ButtonLoader /> : attendId ? "Update" : "Create"}
               </Button>
             </div>
           </div>

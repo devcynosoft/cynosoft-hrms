@@ -32,6 +32,7 @@ const LeaveListComponent = () => {
   const [annualUsed, setAnnualUsed] = useState(0);
   const [sickUsed, setSickUsed] = useState(0);
   const [casualUsed, setCasualUsed] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const getLeavesData = async () => {
@@ -39,50 +40,24 @@ const LeaveListComponent = () => {
       startOfToday.setHours(0, 0, 0, 0);
       const start = (currentPage - 1) * recordsPerPage;
       const end = start + recordsPerPage - 1;
-
-      let query = supabase
-        .from("leaves")
-        .select(
-          `
-        id, 
-        content, 
-        start_date, 
-        end_date, 
-        approval_status,
-        leave_type,
-        created_at,
-        duration,
-        employees(name)
-
-      `
-        )
-
-        .eq("employees.is_current", true)
-        .not("employees", "is", null)
-        .range(start, end)
-        .order("created_at", { ascending: false });
-      if (employeeData?.role !== "admin") {
-        query = query.eq("supabase_user_id", employeeData?.supabase_user_id);
-      }
-      if (name) {
-        query = query.ilike("employees.name", `%${name}%`);
-      }
-      if (leaveType) {
-        if (leaveType?.value !== "all") {
-          query = query.eq("leave_type", leaveType.value);
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/leave/get-all?start=${start}&end=${end}&name=${name}&startOfToday=${startOfToday}&startDate=${startDate}&leaveType=${JSON.stringify(
+          leaveType
+        )}&leaveStatusFilter=${JSON.stringify(leaveStatusFilter)}&userId=${
+          employeeData?.role !== "admin" ? employeeData?.supabase_user_id : null
+        }`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-      }
-      if (leaveStatusFilter) {
-        if (leaveStatusFilter?.value !== "all") {
-          query = query.eq("approval_status", leaveStatusFilter.value);
-        }
-      }
-      if (startDate) {
-        query = query.gte("created_at", `${startOfToday.toISOString()}`);
-      }
-      const { data, error } = await query;
-      if (data) {
-        const updatedLeaveData = data?.map((leave) => {
+      );
+      const result = await response.json();
+      if (response?.status === 200) {
+        setIsLoading(false);
+        const updatedLeaveData = result?.data?.data?.map((leave) => {
           return {
             ...leave,
             name: leave?.employees?.name,
@@ -91,42 +66,8 @@ const LeaveListComponent = () => {
           };
         });
         setLeavesData(updatedLeaveData);
+        setTotalRecord(result?.data?.count);
       }
-      let secndQuery = supabase
-        .from("leaves")
-        .select(`id, employees!inner(name)`, { count: "exact", head: true })
-        .eq("employees.is_current", true);
-      if (name) {
-        secndQuery = secndQuery.ilike("employees.name", `%${name}%`);
-      }
-      if (employeeData?.role !== "admin") {
-        secndQuery = secndQuery.eq(
-          "supabase_user_id",
-          employeeData?.supabase_user_id
-        );
-      }
-      if (leaveType) {
-        if (leaveType?.value !== "all") {
-          secndQuery = secndQuery.eq("leave_type", leaveType.value);
-        }
-      }
-      if (leaveStatusFilter) {
-        if (leaveStatusFilter?.value !== "all") {
-          secndQuery = secndQuery.eq(
-            "approval_status",
-            leaveStatusFilter.value
-          );
-        }
-      }
-      if (startDate) {
-        secndQuery = secndQuery.gte(
-          "created_at",
-          `${startOfToday.toISOString()}`
-        );
-      }
-      const { count } = await secndQuery;
-
-      if (count) setTotalRecord(count);
     };
     if (employeeData) {
       getLeavesData();
@@ -144,19 +85,26 @@ const LeaveListComponent = () => {
 
   useEffect(() => {
     const getLeavesCount = async () => {
-      const { data: leaveData, error } = await supabase
-        .from("leaves")
-        .select("leave_type, duration")
-        .eq("approval_status", "Approved")
-        .eq("supabase_user_id", employeeData?.supabase_user_id);
-      if (error) {
-        console.error("Error fetching leave data:", error);
-      } else {
+      const response = await fetch(
+        `/api/leave/get-all?count=${"count"}&userId=${
+          employeeData?.supabase_user_id
+        }`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (response?.status === 200) {
         let annualLeavesUsed = 0;
         let sickLeavesUsed = 0;
         let casualLeavesUsed = 0;
 
-        leaveData?.forEach((leave) => {
+        result?.data?.data?.forEach((leave) => {
           if (leave.leave_type === "Annual") {
             annualLeavesUsed += leave.duration;
           } else if (leave.leave_type === "Sick") {
@@ -169,6 +117,8 @@ const LeaveListComponent = () => {
         setAnnualUsed(annualLeavesUsed);
         setSickUsed(sickLeavesUsed);
         setCasualUsed(casualLeavesUsed);
+      } else {
+        console.error("Error fetching leave data:", result?.error);
       }
     };
     if (employeeData) getLeavesCount();
@@ -252,7 +202,6 @@ const LeaveListComponent = () => {
       .eq("id", selectedRowData?.id);
     if (updateError) {
       console.log(updateError, "updateError");
-      // setcheckoutLoading(false);
     }
     toast.success(`${selectedRowData?.employees?.name} Leave Rejected`, {
       position: "bottom-right",
@@ -406,6 +355,7 @@ const LeaveListComponent = () => {
             setRecordsPerPage={setRecordsPerPage}
             onIconClick={handleIconClick}
             tableHeight={isMobile ? "30" : "47"}
+            isLoading={isLoading}
           />
         </div>
       </div>

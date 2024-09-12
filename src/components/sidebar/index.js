@@ -85,22 +85,6 @@ const SidebarComponent = ({ employeeData }) => {
       });
       setIsLoading(false);
       setIsHide(false);
-    } else if (response?.status === 401) {
-      toast.error(result?.message, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setIsLoading(false);
-      setIsHide(false);
-      setTimeout(() => {
-        router.push("/hrms/login");
-      }, 1000);
     } else {
       toast.error(result?.error, {
         position: "bottom-right",
@@ -168,22 +152,6 @@ const SidebarComponent = ({ employeeData }) => {
       });
       setcheckoutLoading(false);
       setIsHide(false);
-    } else if (response?.status === 401) {
-      toast.error(result?.message, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setcheckoutLoading(false);
-      setIsHide(false);
-      setTimeout(() => {
-        router.push("/hrms/login");
-      }, 1000);
     } else {
       toast.error(result?.error, {
         position: "bottom-right",

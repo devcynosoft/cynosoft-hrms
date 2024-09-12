@@ -28,38 +28,40 @@ const EmployeeCreateComponent = ({ empId }) => {
 
   useEffect(() => {
     const getSingleEmployeeData = async () => {
-      try {
-        let query = supabase.from("employees").select("*").eq("id", empId);
-        if (employeeData?.role !== "admin") {
-          query = query.eq("supabase_user_id", employeeData?.supabase_user_id);
+      const response = await fetch(
+        `/api/employee/get-all?empId=${empId}
+        `,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-        const { data, error } = await query;
-
-        if (error) {
-          console.error("Error fetching leave data:", error);
-        }
+      );
+      const result = await response.json();
+      if (response?.status === 200) {
         reset({
-          name: data?.[0]?.name || "",
-          email: data?.[0]?.email || "",
-          password: data?.[0]?.password || "",
-          contact: data?.[0]?.contact || "",
-          role: data?.[0]?.role || "",
-          annual_leaves: data?.[0]?.annual_leaves || "",
-          sick_leaves: data?.[0]?.sick_leaves || "",
-          casual_leaves: data?.[0]?.casual_leaves || "",
+          name: result?.data?.[0]?.name || "",
+          email: result?.data?.[0]?.email || "",
+          password: result?.data?.[0]?.password || "",
+          contact: result?.data?.[0]?.contact || "",
+          role: result?.data?.[0]?.role || "",
+          annual_leaves: result?.data?.[0]?.annual_leaves || "",
+          sick_leaves: result?.data?.[0]?.sick_leaves || "",
+          casual_leaves: result?.data?.[0]?.casual_leaves || "",
         });
         setJobStatus(
-          data?.[0]?.is_current
+          result?.data?.[0]?.is_current
             ? { label: "Current", value: true }
             : { label: "Left", value: false }
         );
-        setPass(data?.[0]?.password || "");
-      } catch (error) {}
+        setPass(result?.data?.[0]?.password || "");
+      }
     };
-    if (empId || employeeData) {
+    if (empId) {
       getSingleEmployeeData();
     }
-  }, [empId, employeeData]);
+  }, [empId]);
 
   const handleUpload = async (acceptedFile) => {
     const file = acceptedFile[0];
@@ -116,62 +118,118 @@ const EmployeeCreateComponent = ({ empId }) => {
         }
       }
 
-      let query = supabase
-        .from("employees")
-        .update({
-          name,
-          role,
-          pic,
-          contact,
-          annual_leaves,
-          sick_leaves,
-          casual_leaves,
-          is_current: jobStatus.value,
-        })
-        .eq("id", empId);
-      if (employeeData?.role !== "admin") {
-        query = query.eq("supabase_user_id", employeeData?.supabase_user_id);
-      }
-      const { data: updateData, error: updateError } = await query;
-      if (updateError) {
-        setIsLoading(false);
-        console.log(updateError, "updateError");
-      }
-      toast.success(`Successfully Employee updated`, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      if (+employeeData?.id === +empId) {
-        setEmployeeData({
-          ...employeeData,
-          name,
-          password,
-          role,
-          contact,
-          annual_leaves,
-          sick_leaves,
-          casual_leaves,
-          pic: pic ? pic : employeeData.pic,
-        });
-      }
+      const updateBody = {
+        name,
+        role,
+        pic,
+        contact,
+        annual_leaves,
+        sick_leaves,
+        casual_leaves,
+        is_current: jobStatus.value,
+      };
 
-      setIsLoading(false);
-      if (employeeData?.role === "admin") {
-        setTimeout(() => {
-          router.push("/hrms/employee/list");
-        }, 500);
+      const response = await fetch(
+        `/api/employee/upsert?empId=${empId}&userId=${
+          employeeData?.role !== "admin" ? employeeData?.supabase_user_id : null
+        }`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateBody),
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        setIsLoading(false);
+        toast.success(result?.data, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+        if (+employeeData?.id === +empId) {
+          setEmployeeData({
+            ...employeeData,
+            name,
+            password,
+            role,
+            contact,
+            annual_leaves,
+            sick_leaves,
+            casual_leaves,
+            pic: pic ? pic : employeeData.pic,
+          });
+        }
+
+        if (employeeData?.role === "admin") {
+          setTimeout(() => {
+            router.push("/hrms/employee/list");
+          }, 500);
+        }
+      } else {
+        setIsLoading(false);
+        toast.error(result.error, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
       }
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password });
-
-      if (error) {
-        setIsLoading(false);
+      if (!error) {
+        let empData = {
+          ...submitData,
+          supabase_user_id: data?.user?.id,
+        };
+        const response = await fetch("/api/employee/upsert", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(empData),
+        });
+        const result = await response.json();
+        if (response.status === 200) {
+          toast.success(result?.data, {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+          setIsLoading(false);
+          setTimeout(() => {
+            router.push("/hrms/employee/list");
+          }, 500);
+        } else {
+          setIsLoading(false);
+          toast.error(result?.error, {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+        }
+      } else {
         toast.error(error?.message, {
           position: "bottom-right",
           autoClose: 5000,
@@ -182,52 +240,6 @@ const EmployeeCreateComponent = ({ empId }) => {
           progress: undefined,
           theme: "colored",
         });
-        return;
-      }
-      const { data: employeeData, error: employeeError } = await supabase
-        .from("employees")
-        .insert([
-          {
-            supabase_user_id: data?.user?.id,
-            email,
-            password,
-            name,
-            role,
-            contact,
-            pic,
-            annual_leaves,
-            sick_leaves,
-            casual_leaves,
-          },
-        ]);
-      if (employeeError) {
-        setIsLoading(false);
-        toast.error(employeeError.message, {
-          position: "bottom-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "colored",
-        });
-        return;
-      } else {
-        toast.success("Successfully Added Employee", {
-          position: "bottom-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "colored",
-        });
-        setIsLoading(false);
-        setTimeout(() => {
-          router.push("/hrms/employee/list");
-        }, 500);
       }
     }
   };
