@@ -5,16 +5,22 @@ export async function POST(req) {
     const { text } = await req.json();
 
     const slackResponse = await axios.post(
-      "https://hooks.slack.com/services/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",
+      process.env.NEXT_PUBLIC_WEBHOOK_API,
       { text }
     );
 
-    return new Response(JSON.stringify({ success: true, data: slackResponse.data }), {
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({ success: true, data: slackResponse.data }),
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      {
+        status: 500,
+      }
+    );
   }
 }

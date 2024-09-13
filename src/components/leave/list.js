@@ -19,6 +19,7 @@ const LeaveListComponent = () => {
   const isMobile = useIsMobile();
   const { employeeData } = useEmployee();
   const [name, setName] = useState("");
+  const [debouncedName, setDebouncedName] = useState(name);
   const [leaveType, setLeaveType] = useState(null);
   const [leaveStatusFilter, setLeaveStatusFilter] = useState(null);
   const [startDate, setStartDate] = useState(null);
@@ -35,6 +36,16 @@ const LeaveListComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedName(name);
+    }, process.env.NEXT_PUBLIC_DEBOUNCE_DELAY);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [name]);
+
+  useEffect(() => {
     const getLeavesData = async () => {
       const startOfToday = new Date(startDate);
       startOfToday.setHours(0, 0, 0, 0);
@@ -42,7 +53,7 @@ const LeaveListComponent = () => {
       const end = start + recordsPerPage - 1;
       setIsLoading(true);
       const response = await fetch(
-        `/api/leave/get-all?start=${start}&end=${end}&name=${name}&startOfToday=${startOfToday}&startDate=${startDate}&leaveType=${JSON.stringify(
+        `/api/leave/get-all?start=${start}&end=${end}&name=${debouncedName}&startOfToday=${startOfToday}&startDate=${startDate}&leaveType=${JSON.stringify(
           leaveType
         )}&leaveStatusFilter=${JSON.stringify(leaveStatusFilter)}&userId=${
           employeeData?.role !== "admin" ? employeeData?.supabase_user_id : null
@@ -76,7 +87,7 @@ const LeaveListComponent = () => {
     employeeData,
     currentPage,
     recordsPerPage,
-    name,
+    debouncedName,
     leaveType,
     leaveStatusFilter,
     startDate,

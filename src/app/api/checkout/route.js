@@ -2,6 +2,7 @@ import { DecryptData } from "@/utils/encrypt";
 import { supabase } from "@/utils/supabaseClient";
 import calculateTimeDifference from "@/utils/timeDifference";
 import isTokenValid from "@/utils/tokenValidation";
+import axios from "axios";
 
 export async function PATCH(req) {
   let isValid = false;
@@ -53,6 +54,8 @@ export async function PATCH(req) {
           }
         );
       }
+      const text = `Checked Out - ${employeeData?.name}`;
+      await axios.post(process.env.NEXT_PUBLIC_WEBHOOK_API, { text });
       return new Response(
         JSON.stringify({
           success: true,

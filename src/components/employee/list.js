@@ -14,10 +14,21 @@ const EmployeeListComponent = () => {
   const [employeeData, setEmployeeData] = useState([]);
   const [jobStatus, setJobStatus] = useState(null);
   const [name, setName] = useState("");
+  const [debouncedName, setDebouncedName] = useState(name);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedName(name);
+    }, process.env.NEXT_PUBLIC_DEBOUNCE_DELAY);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [name]);
 
   useEffect(() => {
     const getEmployeeDetail = async () => {
@@ -25,7 +36,7 @@ const EmployeeListComponent = () => {
       const end = start + recordsPerPage - 1;
       setIsLoading(true);
       const response = await fetch(
-        `/api/employee/get-all?start=${start}&end=${end}&name=${name}&jobStatus=${JSON.stringify(
+        `/api/employee/get-all?start=${start}&end=${end}&name=${debouncedName}&jobStatus=${JSON.stringify(
           jobStatus
         )}`,
         {
@@ -43,7 +54,7 @@ const EmployeeListComponent = () => {
       }
     };
     getEmployeeDetail();
-  }, [currentPage, recordsPerPage, name, jobStatus]);
+  }, [currentPage, recordsPerPage, debouncedName, jobStatus]);
 
   const handleIconClick = (rowData) => {
     router.push(`/hrms/employee/edit/${rowData?.id}`);

@@ -1,6 +1,7 @@
 import { DecryptData } from "@/utils/encrypt";
 import { supabase } from "@/utils/supabaseClient";
 import isTokenValid from "@/utils/tokenValidation";
+import axios from "axios";
 
 export async function POST(req) {
   let isValid = false;
@@ -67,6 +68,8 @@ export async function POST(req) {
           }
         );
       }
+      const text = `Checked In - ${employeeData?.name}`;
+      await axios.post(process.env.NEXT_PUBLIC_WEBHOOK_API, { text });
       return new Response(
         JSON.stringify({
           success: true,

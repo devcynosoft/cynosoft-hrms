@@ -15,12 +15,23 @@ const AttendanceDetailComponent = () => {
   const isMobile = useIsMobile();
   const [employeeData, setEmployeeData] = useState([]);
   const [name, setName] = useState("");
+  const [debouncedName, setDebouncedName] = useState(name);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(5);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedName(name);
+    }, process.env.NEXT_PUBLIC_DEBOUNCE_DELAY);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [name]);
 
   useEffect(() => {
     const getEmployeeAttendance = async () => {
@@ -34,7 +45,7 @@ const AttendanceDetailComponent = () => {
       const end = start + recordsPerPage - 1;
       setIsLoading(true);
       const response = await fetch(
-        `/api/attendance/get-all?start=${start}&end=${end}&name=${name}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+        `/api/attendance/get-all?start=${start}&end=${end}&name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
         {
           method: "GET",
           headers: {
@@ -66,7 +77,7 @@ const AttendanceDetailComponent = () => {
       }
     };
     getEmployeeAttendance();
-  }, [currentPage, recordsPerPage, name, startDate, endDate]);
+  }, [currentPage, recordsPerPage, debouncedName, startDate, endDate]);
 
   const configData = [
     {

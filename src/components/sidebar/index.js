@@ -57,21 +57,6 @@ const SidebarComponent = ({ employeeData }) => {
       });
       setIsLoading(false);
       setIsHide(false);
-      try {
-        let text = `Checked In - ${employeeData?.name}`;
-        const response = await fetch("/api/slack/checkin", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text }),
-        });
-
-        const result = await response.json();
-        console.log(result, "Response from Slack");
-      } catch (error) {
-        console.log(error);
-      }
     } else if (response?.status === 201) {
       toast.warn(result?.data, {
         position: "bottom-right",
@@ -124,21 +109,6 @@ const SidebarComponent = ({ employeeData }) => {
       });
       setcheckoutLoading(false);
       setIsHide(false);
-      try {
-        let text = `Checked Out - ${employeeData?.name}`;
-        const response = await fetch("/api/slack/checkin", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text }),
-        });
-
-        const result = await response.json();
-        console.log(result, "Response from Slack");
-      } catch (error) {
-        console.log(error);
-      }
     } else if (response?.status === 201) {
       toast.warn(result?.data, {
         position: "bottom-right",
