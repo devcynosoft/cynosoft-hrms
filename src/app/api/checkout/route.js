@@ -39,11 +39,15 @@ export async function PATCH(req) {
       .is("checkout_time", null)
       .single();
     if (attendanceData) {
+      const timeDifference = calculateTimeDifference(
+        attendanceData?.checkin_time
+      );
       const { data: updateData, error: updateError } = await supabase
         .from("attendance")
         .update({
           checkout_time: currentTime,
-          total_hour: calculateTimeDifference(attendanceData?.checkin_time),
+          total_hour: timeDifference,
+          early_out: timeDifference >= "09:00:00" ? false : true,
         })
         .eq("id", attendanceData?.id);
       if (updateError) {

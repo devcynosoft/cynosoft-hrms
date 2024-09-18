@@ -188,6 +188,7 @@ function AttendanceComponent() {
         });
       }
     } catch (error) {
+      setPdfLoading(false);
       toast.error(`Something went wrong`, {
         position: "bottom-right",
         autoClose: 5000,

@@ -50,6 +50,7 @@ export async function GET(req, res) {
         checkin_time, 
         checkout_time, 
         total_hour, 
+        early_out,
         employees(name)
       `
       )

@@ -7,18 +7,25 @@ export async function generateAttendancePdf(data) {
   const pdfDoc = await PDFDocument.create();
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
-  const page = pdfDoc.addPage([600, 400]);
-  const { width, height } = page.getSize();
+  const logoUrl = "/assets/images/logo-light.png";
+  const logoImageBytes = await fetch(logoUrl).then((res) => res.arrayBuffer());
+  const logoImage = await pdfDoc.embedPng(logoImageBytes);
 
-  // Title
-  page.drawText("Attendance Report", {
-    x: 50,
-    y: height - 50,
-    size: 20,
-    font: timesRomanFont,
-    color: rgb(0, 0, 0),
-  });
+  const pageWidth = 595;
+  const pageHeight = 841; // A4 size
+  const rowHeight = 20; // Each row's height
 
+  // Margins
+  const topMargin = 160; // Space for the title and logo
+  const bottomMargin = 100; // Space for the signature
+  const availableHeight = pageHeight - topMargin - bottomMargin;
+
+  const maxRowsPerPage = Math.floor(availableHeight / rowHeight); // Maximum rows per page
+
+  let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+  let currentY = pageHeight - topMargin;
+
+  // Time to Seconds Conversion
   const timeToSeconds = (time) => {
     const [hours, minutes, seconds] = time.split(":").map(Number);
     return hours * 3600 + minutes * 60 + seconds;
@@ -43,32 +50,99 @@ export async function generateAttendancePdf(data) {
     ?.reduce((acc, item) => acc + timeToSeconds(item?.total_hour), 0);
   const totalHours = secondsToTime(totalSeconds);
 
+  const earlyOutCount = data?.filter((item) => {
+    return item?.early_out;
+  }).length;
 
-  page.drawText(`Hours Count: ${totalHours}`, {
-    x: width - 200, // Adjust x value to align to the right
-    y: height - 50,
-    size: 14,
-    font: timesRomanFont,
-    color: rgb(0, 0, 0),
-  });
+  // Function to add headers and title
+  const addHeader = (page, y) => {
+    // Add logo
+    const logoWidth = 177; // Width of the logo
+    const logoHeight = 44; // Height of the logo
+    page.drawImage(logoImage, {
+      x: 10,
+      y: pageHeight - logoHeight - 10,
+      width: logoWidth,
+      height: logoHeight,
+    });
 
-  // Set up the headers
-  const headers = ["Date", "Check-in", "Check-out", "Total Hours"];
-  const startY = height - 100;
+    // Title
+    page.drawText("Attendance Report", {
+      x: 25,
+      y: pageHeight - 100,
+      size: 20,
+      font: timesRomanFont,
+      color: rgb(0, 0, 0),
+    });
 
-  headers.forEach((header, index) => {
-    page.drawText(header, {
-      x: 50 + index * 120,
-      y: startY,
+    page.drawText(`Name: ${data?.[0]?.employees?.name}`, {
+      x: 25,
+      y: pageHeight - 130,
+      size: 12,
+      font: timesRomanFont,
+      color: rgb(0, 0, 0),
+    });
+
+    // Display total hours and early outs
+    page.drawText(`Hours Count: ${totalHours}`, {
+      x: pageWidth - 150, // Adjust x value to align to the right
+      y: pageHeight - 80,
+      size: 12,
+      font: timesRomanFont,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(`Early Out: ${earlyOutCount}`, {
+      x: pageWidth - 150, // Adjust x value to align to the right
+      y: pageHeight - 100,
+      size: 12,
+      font: timesRomanFont,
+      color: rgb(0, 0, 0),
+    });
+
+    // Set up the headers
+    const headers = ["Date", "Check-in", "Check-out", "Total Hours"];
+    const headerXPositions = [50, 170, 290, 410];
+    headers.forEach((header, index) => {
+      page.drawText(header, {
+        x: headerXPositions[index],
+        y: y, // Adjust Y position for the headers
+        size: 14,
+        font: timesRomanFont,
+        color: rgb(0, 0, 0),
+      });
+    });
+  };
+
+  const addSignature = (page) => {
+    // Add the signature area at the bottom of the page
+    page.drawText(`Signature Here :`, {
+      x: 10,
+      y: 30, // Bottom margin for the signature
       size: 14,
       font: timesRomanFont,
       color: rgb(0, 0, 0),
     });
-  });
+  };
 
-  // Add the data
+  // Add headers on the first page
+  addHeader(currentPage, currentY);
+
+  // Function to add a new page and headers when needed
+  const addNewPage = () => {
+    currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+    currentY = pageHeight - topMargin;
+    addHeader(currentPage, currentY);
+  };
+
+  // Add the data rows
   data?.forEach((item, rowIndex) => {
-    const rowY = startY - (rowIndex + 1) * 20;
+    if (rowIndex > 0 && rowIndex % maxRowsPerPage === 0) {
+      addSignature(currentPage); // Add signature to the previous page before creating a new one
+      addNewPage(); // Create a new page when the data exceeds one page
+    }
+
+    const rowY = currentY - ((rowIndex % maxRowsPerPage) + 1) * rowHeight;
 
     // Format the date from checkin_time
     const date = item?.checkin_time
@@ -83,10 +157,11 @@ export async function generateAttendancePdf(data) {
     const totalHour = item?.total_hour ? item?.total_hour : "N/A";
 
     const values = [date, checkin, checkout, totalHour];
+    const valueXPositions = [50, 170, 290, 410];
 
     values.forEach((value, index) => {
-      page.drawText(value, {
-        x: 50 + index * 120,
+      currentPage.drawText(value, {
+        x: valueXPositions[index],
         y: rowY,
         size: 10,
         font: timesRomanFont,
@@ -94,6 +169,9 @@ export async function generateAttendancePdf(data) {
       });
     });
   });
+
+  // Add signature to the last page
+  addSignature(currentPage);
 
   // Serialize the PDF document to bytes
   const pdfBytes = await pdfDoc.save();

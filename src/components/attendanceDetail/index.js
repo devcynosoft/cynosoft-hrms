@@ -8,7 +8,10 @@ import DatePicker from "react-datepicker";
 import SearchField from "../SearchField";
 import { useRouter } from "next/navigation";
 import useIsMobile from "@/utils/useIsMobile";
-import { Button } from "react-bootstrap";
+import { Button, Dropdown } from "react-bootstrap";
+import ButtonLoader from "../ButtonLoader";
+import { toast } from "react-toastify";
+import { generateAttendancePdf } from "@/utils/pdfGenerator";
 
 const AttendanceDetailComponent = () => {
   const router = useRouter();
@@ -22,6 +25,7 @@ const AttendanceDetailComponent = () => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -69,7 +73,9 @@ const AttendanceDetailComponent = () => {
           checkOut: att?.checkout_time
             ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
             : "",
-          hour: att?.total_hour,
+          hour: att?.total_hour
+            ? `${att?.total_hour}${att.early_out ? " - Early out" : ""}`
+            : "",
         }));
         setIsLoading(false);
         setEmployeeData(formattedData);
@@ -109,6 +115,69 @@ const AttendanceDetailComponent = () => {
 
   const handleIconClick = (rowData) => {
     router.push(`/hrms/employee/attendance/edit/${rowData?.id}`);
+  };
+
+  const filteredPdfHandler = async () => {
+    try {
+      if ((startDate || endDate) && name) {
+        setPdfLoading(true);
+        const startOfToday = new Date(startDate);
+        startOfToday.setHours(0, 0, 0, 0);
+
+        const endOfToday = new Date(endDate);
+        endOfToday.setHours(23, 59, 59, 999);
+
+        const response = await fetch(
+          `/api/attendance/get-all?name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const result = await response.json();
+        if (response.status === 200) {
+          generateAttendancePdf(result?.data?.data);
+          setPdfLoading(false);
+        } else {
+          setPdfLoading(false);
+          toast.error(`Something went wrong`, {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+        }
+      } else {
+        toast.error(`Please select filters`, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      }
+    } catch (error) {
+      setPdfLoading(false);
+      toast.error(`Something went wrong`, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+    }
   };
 
   return (
@@ -162,8 +231,19 @@ const AttendanceDetailComponent = () => {
           </div>
         </div>
         <div
-          className={`d-flex justify-content-start justify-content-md-end mt-3 mb-3 ${styles.btnCont}`}
+          className={`d-flex justify-content-start justify-content-md-between mt-3 mb-3 ${styles.btnCont}`}
         >
+          <Dropdown className="mt-3 mt-md-0">
+            <Dropdown.Toggle
+              onClick={filteredPdfHandler}
+              variant="success"
+              id="dropdown-basic"
+              disabled={pdfLoading}
+              style={{ width: "140px" }}
+            >
+              {pdfLoading ? <ButtonLoader /> : "Download PDF"}
+            </Dropdown.Toggle>
+          </Dropdown>
           <Button
             className={`hrms-button`}
             variant="primary"

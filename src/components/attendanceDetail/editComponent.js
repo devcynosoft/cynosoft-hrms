@@ -104,13 +104,20 @@ const AttendanceEditComponent = ({ attendId }) => {
     );
 
     if (attendId) {
+      const timeDifference = calculateTimeDifference(
+        dbCheckinTime,
+        dbCheckoutTime
+      );
       let atendData = {
         checkin_time: dbCheckinTime,
         checkout_time: checkout_time ? dbCheckoutTime : null,
-        total_hour:
+        total_hour: checkin_time && checkout_time ? timeDifference : null,
+        early_out:
           checkin_time && checkout_time
-            ? calculateTimeDifference(dbCheckinTime, dbCheckoutTime)
-            : "",
+            ? timeDifference >= "09:00:00"
+              ? false
+              : true
+            : null,
       };
       const response = await fetch(
         `/api/attendance/upsert?attendId=${attendId}`,
@@ -152,11 +159,16 @@ const AttendanceEditComponent = ({ attendId }) => {
         });
       }
     } else {
+      const timeDifference = calculateTimeDifference(
+        dbCheckinTime,
+        dbCheckoutTime
+      );
       let atendData = {
         supabase_user_id: name.value,
         checkin_time: dbCheckinTime,
         checkout_time: dbCheckoutTime,
-        total_hour: calculateTimeDifference(dbCheckinTime, dbCheckoutTime),
+        total_hour: timeDifference,
+        early_out: timeDifference >= "09:00:00" ? false : true,
       };
       const response = await fetch("/api/attendance/upsert", {
         method: "POST",
