@@ -22,7 +22,7 @@ const DynamicTable = ({
           <thead>
             <tr>
               {config?.map((column, index) => (
-                <th scope="col" key={index}>
+                <th style={{ minWidth: "120px" }} scope="col" key={index}>
                   {column?.label}
                 </th>
               ))}

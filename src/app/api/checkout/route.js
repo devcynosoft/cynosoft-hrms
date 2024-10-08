@@ -47,7 +47,7 @@ export async function PATCH(req) {
         .update({
           checkout_time: currentTime,
           total_hour: timeDifference,
-          early_out: timeDifference >= "09:00:00" ? false : true,
+          early_out: timeDifference > "08:59:00" ? false : true,
         })
         .eq("id", attendanceData?.id);
       if (updateError) {
