@@ -30,7 +30,13 @@ export async function PATCH(req) {
 
     const startTime = new Date(today);
     startTime.setHours(0, 0, 0, 0);
-
+    let jobHour;
+    if (employeeData.job_type === "fullTime") {
+      jobHour = "08:59:00";
+    }
+    if (employeeData.job_type === "partTime") {
+      jobHour = "04:59:00";
+    }
     const { data: attendanceData, error: fetchError } = await supabase
       .from("attendance")
       .select("id, checkin_time")
@@ -47,7 +53,7 @@ export async function PATCH(req) {
         .update({
           checkout_time: currentTime,
           total_hour: timeDifference,
-          early_out: timeDifference > "08:59:00" ? false : true,
+          early_out: timeDifference > jobHour ? false : true,
         })
         .eq("id", attendanceData?.id);
       if (updateError) {

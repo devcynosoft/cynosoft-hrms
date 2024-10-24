@@ -19,7 +19,11 @@ const EmployeeCreateComponent = ({ empId }) => {
     reset,
     getValues,
     setValue,
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      job_type: "fullTime",
+    },
+  });
   const router = useRouter();
   const { employeeData, setEmployeeData } = useEmployee();
   const [jobStatus, setJobStatus] = useState(null);
@@ -49,6 +53,7 @@ const EmployeeCreateComponent = ({ empId }) => {
           annual_leaves: result?.data?.[0]?.annual_leaves || "",
           sick_leaves: result?.data?.[0]?.sick_leaves || "",
           casual_leaves: result?.data?.[0]?.casual_leaves || "",
+          job_type: result?.data?.[0]?.job_type || "",
         });
         setJobStatus(
           result?.data?.[0]?.is_current
@@ -104,6 +109,7 @@ const EmployeeCreateComponent = ({ empId }) => {
       annual_leaves,
       sick_leaves,
       casual_leaves,
+      job_type,
     } = submitData;
     if (empId) {
       if (pass !== password) {
@@ -127,6 +133,7 @@ const EmployeeCreateComponent = ({ empId }) => {
         sick_leaves,
         casual_leaves,
         is_current: jobStatus.value,
+        job_type,
       };
 
       const response = await fetch(
@@ -165,6 +172,7 @@ const EmployeeCreateComponent = ({ empId }) => {
             sick_leaves,
             casual_leaves,
             pic: pic ? pic : employeeData.pic,
+            job_type,
           });
         }
 
@@ -394,6 +402,49 @@ const EmployeeCreateComponent = ({ empId }) => {
                 ) : (
                   <></>
                 )}
+                <div className="d-flex align-items-center mt-md-3 mt-1">
+                  <span className={styles.fieldText}>Job Type:</span>
+                  <div className="mt-2 w-100 d-flex">
+                    <div className="form-check me-3">
+                      <input
+                        {...register("job_type")}
+                        className="form-check-input"
+                        type="radio"
+                        value="fullTime"
+                        name="job_type"
+                        id="fullTime"
+                        disabled={
+                          employeeData?.role === "admin" ? false : true
+                        }
+                      />
+                      <label className="form-check-label" htmlFor="fullTime">
+                        Full Time
+                      </label>
+                    </div>
+                    <div className="form-check">
+                      <input
+                        {...register("job_type")}
+                        className="form-check-input"
+                        type="radio"
+                        value="partTime"
+                        name="job_type"
+                        id="partTime"
+                        disabled={
+                          employeeData?.role === "admin" ? false : true
+                        }
+                      />
+                      <label className="form-check-label" htmlFor="partTime">
+                        Part Time
+                      </label>
+                    </div>
+
+                    {errors?.job_type && (
+                      <p className="hrms-field-error">
+                        {errors?.job_type?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </Col>
               <Col
                 xl={6}
