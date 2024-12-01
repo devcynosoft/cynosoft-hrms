@@ -28,7 +28,11 @@ const EmployeeCreateComponent = ({ empId }) => {
   const { employeeData, setEmployeeData } = useEmployee();
   const [jobStatus, setJobStatus] = useState(null);
   const [pass, setPass] = useState("");
+  const [supaId, setSupaId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [annualUsed, setAnnualUsed] = useState(0);
+  const [sickUsed, setSickUsed] = useState(0);
+  const [casualUsed, setCasualUsed] = useState(0);
 
   useEffect(() => {
     const getSingleEmployeeData = async () => {
@@ -61,12 +65,51 @@ const EmployeeCreateComponent = ({ empId }) => {
             : { label: "Left", value: false }
         );
         setPass(result?.data?.[0]?.password || "");
+        setSupaId(result?.data?.[0]?.supabase_user_id || "");
+      }
+    };
+    const getLeavesCount = async () => {
+      const response = await fetch(
+        `/api/leave/get-all?count=${"count"}&userId=${supaId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (response?.status === 200) {
+        let annualLeavesUsed = 0;
+        let sickLeavesUsed = 0;
+        let casualLeavesUsed = 0;
+
+        result?.data?.data?.forEach((leave) => {
+          if (leave.leave_type === "Annual") {
+            annualLeavesUsed += leave.duration;
+          } else if (leave.leave_type === "Sick") {
+            sickLeavesUsed += leave.duration;
+          } else if (leave.leave_type === "Casual") {
+            casualLeavesUsed += leave.duration;
+          }
+        });
+
+        setAnnualUsed(annualLeavesUsed);
+        setSickUsed(sickLeavesUsed);
+        setCasualUsed(casualLeavesUsed);
+      } else {
+        console.error("Error fetching leave data:", result?.error);
       }
     };
     if (empId) {
       getSingleEmployeeData();
     }
-  }, [empId]);
+    if (supaId) {
+      getLeavesCount();
+    }
+  }, [empId, supaId]);
 
   const handleUpload = async (acceptedFile) => {
     const file = acceptedFile[0];
@@ -413,9 +456,7 @@ const EmployeeCreateComponent = ({ empId }) => {
                         value="fullTime"
                         name="job_type"
                         id="fullTime"
-                        disabled={
-                          employeeData?.role === "admin" ? false : true
-                        }
+                        disabled={employeeData?.role === "admin" ? false : true}
                       />
                       <label className="form-check-label" htmlFor="fullTime">
                         Full Time
@@ -429,9 +470,7 @@ const EmployeeCreateComponent = ({ empId }) => {
                         value="partTime"
                         name="job_type"
                         id="partTime"
-                        disabled={
-                          employeeData?.role === "admin" ? false : true
-                        }
+                        disabled={employeeData?.role === "admin" ? false : true}
                       />
                       <label className="form-check-label" htmlFor="partTime">
                         Part Time
@@ -471,6 +510,23 @@ const EmployeeCreateComponent = ({ empId }) => {
                     )}
                   </div>
                 </div>
+                {empId && employeeData?.role === "admin" ? (
+                  <div className="d-flex align-items-center mt-md-3 mt-1">
+                    <span className={styles.fieldText}>
+                      Used Annual Leaves:
+                    </span>
+                    <div className="mt-2 w-100">
+                      <input
+                        value={annualUsed}
+                        className={`${styles.field} w-100`}
+                        type="number"
+                        disabled={true}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  ""
+                )}
                 <div className="d-flex align-items-center mt-md-3 mt-1">
                   <span className={styles.fieldText}>Sick Leaves:</span>
                   <div className="mt-2 w-100">
@@ -489,6 +545,21 @@ const EmployeeCreateComponent = ({ empId }) => {
                     )}
                   </div>
                 </div>
+                {empId && employeeData?.role === "admin" ? (
+                  <div className="d-flex align-items-center mt-md-3 mt-1">
+                    <span className={styles.fieldText}>Used Sick Leaves:</span>
+                    <div className="mt-2 w-100">
+                      <input
+                        value={sickUsed}
+                        className={`${styles.field} w-100`}
+                        type="number"
+                        disabled={true}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  ""
+                )}
                 <div className="d-flex align-items-center mt-md-3 mt-1">
                   <span className={styles.fieldText}>Casual Leaves:</span>
                   <div className="mt-2 w-100">
@@ -507,6 +578,23 @@ const EmployeeCreateComponent = ({ empId }) => {
                     )}
                   </div>
                 </div>
+                {empId && employeeData?.role === "admin" ? (
+                  <div className="d-flex align-items-center mt-md-3 mt-1">
+                    <span className={styles.fieldText}>
+                      Used Casual Leaves:
+                    </span>
+                    <div className="mt-2 w-100">
+                      <input
+                        className={`${styles.field} w-100`}
+                        type="number"
+                        value={casualUsed}
+                        disabled={true}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  ""
+                )}
 
                 <div className="d-flex align-items-center mt-md-3 mt-1">
                   <span className={`${styles.fieldText}`}>Image Upload:</span>
