@@ -71,6 +71,9 @@ a:active {
   display: flex;
   flex-direction: column;
 }
+.css-1nmdiq5-menu {
+  z-index: 9 !important;
+}
 
 .main-content {
   flex: 1;
@@ -120,7 +123,7 @@ a:active {
 }
 .hrms-calendar-icon {
   position: absolute;
-  z-index: 99;
+  z-index: 1;
   right: 15px;
   top: 8px;
 }

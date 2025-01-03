@@ -87,12 +87,20 @@ const EmployeeCreateComponent = ({ empId }) => {
         let casualLeavesUsed = 0;
 
         result?.data?.data?.forEach((leave) => {
+          const multiplier =
+            leave.leave_type_duration === "Half Day"
+              ? 0.5
+              : leave.leave_type_duration === "Full Day"
+              ? 1
+              : 0; // Default to 0 for unrecognized leave_type_duration
+          // Calculate the effective leave days
+          const effectiveLeaveDays = leave.duration * multiplier;
           if (leave.leave_type === "Annual") {
-            annualLeavesUsed += leave.duration;
+            annualLeavesUsed += effectiveLeaveDays;
           } else if (leave.leave_type === "Sick") {
-            sickLeavesUsed += leave.duration;
+            sickLeavesUsed += effectiveLeaveDays;
           } else if (leave.leave_type === "Casual") {
-            casualLeavesUsed += leave.duration;
+            casualLeavesUsed += effectiveLeaveDays;
           }
         });
 

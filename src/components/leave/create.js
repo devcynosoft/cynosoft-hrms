@@ -27,6 +27,8 @@ const LeaveCreateComponent = ({ leaveId }) => {
   const router = useRouter();
   const isMobile = useIsMobile();
   const [selectedLeaveType, setSelectedLeaveType] = useState(null);
+  const [selectedLeaveTypeDuration, setSelectedLeaveTypeDuration] =
+    useState("Full Day");
   const [isApplicable, setIsApplicable] = useState(true);
   const [leavesUsed, setLeavesUsed] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +50,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
       if (response?.status === 200) {
         reset({
           leave_type: result?.data?.[0]?.leave_type || "",
+          leave_type_duration: result?.data?.[0]?.leave_type_duration || "",
           start_date: result?.data?.[0]?.start_date
             ? new Date(result?.data?.[0]?.start_date)
             : null,
@@ -56,6 +59,10 @@ const LeaveCreateComponent = ({ leaveId }) => {
             : null,
           content: result?.data?.[0]?.content || "",
         });
+        setSelectedLeaveTypeDuration(
+          result?.data?.[0]?.leave_type_duration || "Full Day"
+        );
+        setSelectedLeaveType(result?.data?.[0]?.leave_type || "");
       }
     };
     if (leaveId || employeeData) {
@@ -68,7 +75,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
       try {
         const { data, error } = await supabase
           .from("leaves")
-          .select("duration")
+          .select("duration, leave_type_duration")
           .eq("supabase_user_id", employeeData?.supabase_user_id)
           .eq("approval_status", "Approved")
           .eq("leave_type", selectedLeaveType);
@@ -76,10 +83,20 @@ const LeaveCreateComponent = ({ leaveId }) => {
         if (error) {
           console.error("Error fetching leave data:", error);
         } else {
-          const totalDuration = data?.reduce(
-            (sum, leave) => sum + leave?.duration,
-            0
-          );
+          // Map leave_duration to numeric values (HalfDay = 0.5, FullDay = 1)
+          console.log(data, "data");
+          const totalDuration = data?.reduce((sum, leave) => {
+            const leaveMultiplier =
+              leave?.leave_type_duration === "Half Day"
+                ? 0.5
+                : leave?.leave_type_duration === "Full Day"
+                ? 1
+                : 0; // Default to 0 if leave_type_duration is not defined
+
+            // Calculate effective leave duration
+            const effectiveLeaveDuration = leave?.duration * leaveMultiplier;
+            return sum + effectiveLeaveDuration;
+          }, 0);
           setLeavesUsed(totalDuration);
           const leaveTypes = {
             Annual: employeeData?.annual_leaves,
@@ -109,21 +126,31 @@ const LeaveCreateComponent = ({ leaveId }) => {
         console.error("Error fetching leave data:", error);
       }
     };
-    if (employeeData && selectedLeaveType) {
+    if (employeeData && selectedLeaveType && selectedLeaveTypeDuration) {
       getDaysOfLeaveSelected();
     }
-  }, [employeeData, selectedLeaveType]);
+  }, [employeeData, selectedLeaveType, selectedLeaveTypeDuration]);
 
   const onSubmit = async (leaveData) => {
     setIsLoading(true);
-    const { content, end_date, leave_type, start_date } = leaveData;
-    const leaveDays = CalculateDaysDifference(start_date, end_date);
+    const { content, end_date, leave_type, start_date, leave_type_duration } =
+      leaveData;
+    let leaveDays = 0;
+    if (selectedLeaveTypeDuration === "Half Day") {
+      leaveDays = CalculateDaysDifference(start_date, start_date);
+    } else {
+      leaveDays = CalculateDaysDifference(start_date, end_date);
+    }
     const leaveTypes = {
       Annual: employeeData?.annual_leaves,
       Casual: employeeData?.casual_leaves,
       Sick: employeeData?.sick_leaves,
     };
-    const totalLeaves = leavesUsed + leaveDays;
+
+    const daysLeave =
+      selectedLeaveTypeDuration === "Half Day" ? leaveDays * 0.5 : leaveDays;
+    const totalLeaves = leavesUsed + daysLeave;
+
     if (totalLeaves > leaveTypes[leave_type]) {
       toast.error(`You dont have enough leaves`, {
         position: "bottom-right",
@@ -141,8 +168,10 @@ const LeaveCreateComponent = ({ leaveId }) => {
         if (leaveId) {
           const leaveData = {
             leave_type,
+            leave_type_duration,
             start_date,
-            end_date,
+            end_date:
+              selectedLeaveTypeDuration === "Half Day" ? start_date : end_date,
             content,
             duration: leaveDays,
           };
@@ -192,8 +221,10 @@ const LeaveCreateComponent = ({ leaveId }) => {
         } else {
           const leaveData = {
             leave_type,
+            leave_type_duration,
             start_date,
-            end_date,
+            end_date:
+              selectedLeaveTypeDuration === "Half Day" ? start_date : end_date,
             content,
             duration: leaveDays,
             supabase_user_id: employeeData?.supabase_user_id,
@@ -275,69 +306,44 @@ const LeaveCreateComponent = ({ leaveId }) => {
               style={{ objectFit: "contain" }}
             />
           </div>
-          <div className="mt-2">
-            <span className={styles.text}>Start Date</span>
-            <div className="mt-1">
-              <div className={styles.datePickers}>
-                <Image
-                  src="/assets/icons/Vector-dark.png"
-                  alt="Profile pic"
-                  width={19}
-                  height={18}
-                  className="hrms-calendar-icon"
-                  priority
-                />
-                <DatePicker
-                  {...register("start_date", {
-                    required: "Please select start date.",
-                  })}
-                  name="start_date"
-                  selected={getValues("start_date")}
-                  onChange={(date) =>
-                    setValue("start_date", date, { shouldValidate: true })
-                  }
-                  maxDate={getValues("end_date")}
-                  autoComplete="off"
-                />
-              </div>
-              {errors?.start_date && (
+          <div>
+            <span className={styles.text}>Select Leave Duration</span>
+            <div className={`mt-1`}>
+              <Select
+                {...register("leave_type_duration", {
+                  required: "Please select leave Duration.",
+                })}
+                classNamePrefix="leaveSelect"
+                name="leave_type_duration"
+                className={styles.leaveSelect}
+                placeholder=""
+                value={
+                  getValues("leave_type_duration")
+                    ? {
+                        label: getValues("leave_type_duration"),
+                        value: getValues("leave_type_duration"),
+                      }
+                    : null
+                }
+                onChange={(val) => {
+                  setValue("leave_type_duration", val?.value, {
+                    shouldValidate: true,
+                  });
+                  setSelectedLeaveTypeDuration(val?.value);
+                }}
+                options={[
+                  { label: "Full Day", value: "Full Day" },
+                  { label: "Half Day", value: "Half Day" },
+                ]}
+              />
+              {errors?.leave_type_duration && (
                 <p className="hrms-field-error">
-                  {errors?.start_date?.message}
+                  {errors?.leave_type_duration?.message}
                 </p>
               )}
             </div>
           </div>
           <div className="mt-2">
-            <span className={styles.text}>End Date</span>
-            <div className="mt-1">
-              <div className={styles.datePickers}>
-                <Image
-                  src="/assets/icons/Vector-dark.png"
-                  alt="Profile pic"
-                  width={19}
-                  height={18}
-                  className="hrms-calendar-icon"
-                  priority
-                />
-                <DatePicker
-                  {...register("end_date", {
-                    required: "Please select end date.",
-                  })}
-                  name="end_date"
-                  selected={getValues("end_date")}
-                  onChange={(date) =>
-                    setValue("end_date", date, { shouldValidate: true })
-                  }
-                  minDate={getValues("start_date")}
-                  autoComplete="off"
-                />
-              </div>
-              {errors?.end_date && (
-                <p className="hrms-field-error">{errors?.end_date?.message}</p>
-              )}
-            </div>
-          </div>
-          <div>
             <span className={styles.text}>Select Leave Type</span>
             <div className={`mt-1`}>
               <Select
@@ -373,6 +379,78 @@ const LeaveCreateComponent = ({ leaveId }) => {
               )}
             </div>
           </div>
+          <div className="mt-2">
+            <span className={styles.text}>
+              {selectedLeaveTypeDuration === "Full Day" ? "Start Date" : "Date"}
+            </span>
+            <div className="mt-1">
+              <div className={styles.datePickers}>
+                <Image
+                  src="/assets/icons/Vector-dark.png"
+                  alt="Profile pic"
+                  width={19}
+                  height={18}
+                  className="hrms-calendar-icon"
+                  priority
+                />
+                <DatePicker
+                  {...register("start_date", {
+                    required: "Please select date.",
+                  })}
+                  name="start_date"
+                  selected={getValues("start_date")}
+                  onChange={(date) =>
+                    setValue("start_date", date, { shouldValidate: true })
+                  }
+                  // maxDate={getValues("end_date")}
+                  minDate={new Date()}
+                  autoComplete="off"
+                />
+              </div>
+              {errors?.start_date && (
+                <p className="hrms-field-error">
+                  {errors?.start_date?.message}
+                </p>
+              )}
+            </div>
+          </div>
+          {selectedLeaveTypeDuration === "Full Day" ? (
+            <div className="mt-2">
+              <span className={styles.text}>End Date</span>
+              <div className="mt-1">
+                <div className={styles.datePickers}>
+                  <Image
+                    src="/assets/icons/Vector-dark.png"
+                    alt="Profile pic"
+                    width={19}
+                    height={18}
+                    className="hrms-calendar-icon"
+                    priority
+                  />
+                  <DatePicker
+                    {...register("end_date", {
+                      required: "Please select date.",
+                    })}
+                    name="end_date"
+                    selected={getValues("end_date")}
+                    onChange={(date) =>
+                      setValue("end_date", date, { shouldValidate: true })
+                    }
+                    minDate={getValues("start_date")}
+                    autoComplete="off"
+                  />
+                </div>
+                {errors?.end_date && (
+                  <p className="hrms-field-error">
+                    {errors?.end_date?.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            ""
+          )}
+
           <div className="mt-2 form-group">
             <span className={styles.text}>Reason for leave:</span>
             <div className="mt-1">

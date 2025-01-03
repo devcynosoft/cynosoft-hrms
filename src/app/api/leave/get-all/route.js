@@ -56,6 +56,7 @@ export async function GET(req, res) {
         end_date, 
         approval_status,
         leave_type,
+        leave_type_duration,
         created_at,
         duration,
         employees(name)
