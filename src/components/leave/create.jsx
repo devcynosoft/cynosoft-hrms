@@ -12,7 +12,7 @@ import { useEmployee } from "@/context/EmployeeContext";
 import { useRouter } from "next/navigation";
 import CalculateDaysDifference from "@/utils/daysDifference";
 import useIsMobile from "@/utils/useIsMobile";
-import ButtonLoader from "../ButtonLoader";
+import ButtonLoader from "../ButtonLoader.jsx";
 
 const LeaveCreateComponent = ({ leaveId }) => {
   const {

@@ -1,44 +1,55 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/utils/supabaseClient";
-import DatePicker from "react-datepicker";
-import { Dropdown } from "react-bootstrap";
-import styles from "./attendance.module.css";
-import "react-datepicker/dist/react-datepicker.css";
 import Image from "next/image";
-import Cookies from "js-cookie";
-import { toast } from "react-toastify";
-import { useEmployee } from "@/context/EmployeeContext";
+import React, { useEffect, useState } from "react";
 import DynamicTable from "../table";
-import useIsMobile from "@/utils/useIsMobile";
+import styles from "./attendanceDetail.module.css";
 import moment from "moment";
+import DatePicker from "react-datepicker";
+import SearchField from "../SearchField";
+import { useRouter } from "next/navigation";
+import useIsMobile from "@/utils/useIsMobile";
+import { Button, Dropdown } from "react-bootstrap";
+import ButtonLoader from "../ButtonLoader.jsx";
+import { toast } from "react-toastify";
 import { generateAttendancePdf } from "@/utils/pdfGenerator";
-import ButtonLoader from "../ButtonLoader";
 
-function AttendanceComponent() {
-  const { employeeData } = useEmployee();
+const AttendanceDetailComponent = () => {
+  const router = useRouter();
   const isMobile = useIsMobile();
-  const [attendanceList, setAttendanceList] = useState([]);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [employeeData, setEmployeeData] = useState([]);
+  const [name, setName] = useState("");
+  const [debouncedName, setDebouncedName] = useState(name);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(5);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
-    const getEmployeeDetail = async () => {
+    const handler = setTimeout(() => {
+      setDebouncedName(name);
+    }, process.env.NEXT_PUBLIC_DEBOUNCE_DELAY);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [name]);
+
+  useEffect(() => {
+    const getEmployeeAttendance = async () => {
       const startOfToday = new Date(startDate);
       startOfToday.setHours(0, 0, 0, 0);
 
       const endOfToday = new Date(endDate);
       endOfToday.setHours(23, 59, 59, 999);
+
       const start = (currentPage - 1) * recordsPerPage;
       const end = start + recordsPerPage - 1;
       setIsLoading(true);
       const response = await fetch(
-        `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+        `/api/attendance/get-all?start=${start}&end=${end}&name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
         {
           method: "GET",
           headers: {
@@ -46,68 +57,42 @@ function AttendanceComponent() {
           },
         }
       );
+
       const result = await response.json();
+
       if (response.status === 200) {
         const formattedData = result?.data?.data?.map((att, index) => ({
           id: att?.id,
           date: att?.checkin_time
             ? moment(att?.checkin_time).format("YYYY-MM-DD")
             : "",
+          name: att?.employees?.name,
           checkIn: att?.checkin_time
             ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
             : "",
           checkOut: att?.checkout_time
             ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
             : "",
-          hour: att?.total_hour,
+          hour: att?.total_hour
+            ? `${att?.total_hour}${att.early_out ? " - Early out" : ""}`
+            : "",
         }));
         setIsLoading(false);
-        setAttendanceList(formattedData);
+        setEmployeeData(formattedData);
         setTotalRecord(result?.data?.count);
       }
     };
-    if (employeeData) {
-      getEmployeeDetail();
-    }
-    supabase
-      .channel("table-db-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "attendance",
-        },
-        (payload) => {
-          getEmployeeDetail();
-        }
-      )
-      .subscribe();
-  }, [currentPage, recordsPerPage, startDate, endDate, employeeData]);
-
-  useEffect(() => {
-    const loginToast = Cookies.get("signin_toast");
-    if (loginToast === "true") {
-      toast.success(`Successfully Logged In`, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setTimeout(() => {
-        Cookies.remove("signin_toast");
-      }, 500);
-    }
-  }, []);
+    getEmployeeAttendance();
+  }, [currentPage, recordsPerPage, debouncedName, startDate, endDate]);
 
   const configData = [
     {
       label: "Date",
       key: "date",
+    },
+    {
+      label: "Employee Name",
+      key: "name",
     },
     {
       label: "Check In",
@@ -121,28 +106,20 @@ function AttendanceComponent() {
       label: "Total Hour",
       key: "hour",
     },
+    {
+      label: "Action",
+      isIcon: true,
+      icon: "/assets/icons/Edit.svg",
+    },
   ];
 
-  // const allPdfHandler = async () => {
-  //   const { data, error } = await supabase
-  //     .from("attendance")
-  //     .select(
-  //       `
-  //       id,
-  //       checkin_time,
-  //       checkout_time,
-  //       total_hour,
-  //       employees(name)
-  //     `
-  //     )
-  //     .eq("supabase_user_id", employeeData?.supabase_user_id)
-  //     .order("checkin_time", { ascending: false })
-  //     .eq("employees.is_current", true);
-  //   generateAttendancePdf(data);
-  // };
+  const handleIconClick = (rowData) => {
+    router.push(`/hrms/employee/attendance/edit/${rowData?.id}`);
+  };
+
   const filteredPdfHandler = async () => {
     try {
-      if (startDate || endDate) {
+      if ((startDate || endDate) && name) {
         setPdfLoading(true);
         const startOfToday = new Date(startDate);
         startOfToday.setHours(0, 0, 0, 0);
@@ -151,7 +128,7 @@ function AttendanceComponent() {
         endOfToday.setHours(23, 59, 59, 999);
 
         const response = await fetch(
-          `/api/attendance/get-all?user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+          `/api/attendance/get-all?name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
           {
             method: "GET",
             headers: {
@@ -162,7 +139,9 @@ function AttendanceComponent() {
         const result = await response.json();
         if (response.status === 200) {
           generateAttendancePdf(result?.data?.data);
+          setPdfLoading(false);
         } else {
+          setPdfLoading(false);
           toast.error(`Something went wrong`, {
             position: "bottom-right",
             autoClose: 5000,
@@ -174,7 +153,6 @@ function AttendanceComponent() {
             theme: "colored",
           });
         }
-        setPdfLoading(false);
       } else {
         toast.error(`Please select filters`, {
           position: "bottom-right",
@@ -209,7 +187,7 @@ function AttendanceComponent() {
           className="d-none d-sm-block"
           style={{ fontSize: "30px", fontWeight: "700" }}
         >
-          My Attendance
+          Employee Attendance
         </span>
         <div className="d-flex justify-content-between align-items-sm-start mt-4 align-items-md-center mb-3 flex-md-row flex-column">
           <div className="d-flex">
@@ -244,6 +222,17 @@ function AttendanceComponent() {
               />
             </div>
           </div>
+          <div className="mt-md-0 mt-3">
+            <SearchField
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Search by name"
+            />
+          </div>
+        </div>
+        <div
+          className={`d-flex justify-content-start justify-content-md-between mt-3 mb-3 ${styles.btnCont}`}
+        >
           <Dropdown className="mt-3 mt-md-0">
             <Dropdown.Toggle
               onClick={filteredPdfHandler}
@@ -255,21 +244,32 @@ function AttendanceComponent() {
               {pdfLoading ? <ButtonLoader /> : "Download PDF"}
             </Dropdown.Toggle>
           </Dropdown>
+          <Button
+            className={`hrms-button`}
+            variant="primary"
+            size="md"
+            type="submit"
+            style={{ width: "206px", height: "40px" }}
+            onClick={() => router.push("/hrms/employee/attendance/create")}
+          >
+            Add Attendance
+          </Button>
         </div>
         <DynamicTable
           config={configData}
-          data={attendanceList}
+          data={employeeData}
           totalRecord={totalRecord}
           currentPage={currentPage}
           recordsPerPage={recordsPerPage}
           setCurrentPage={setCurrentPage}
           setRecordsPerPage={setRecordsPerPage}
+          onIconClick={handleIconClick}
           tableHeight={isMobile ? "46" : "50"}
           isLoading={isLoading}
         />
       </div>
     </div>
   );
-}
+};
 
-export default AttendanceComponent;
+export default AttendanceDetailComponent;

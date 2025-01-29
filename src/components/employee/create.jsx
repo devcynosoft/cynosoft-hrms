@@ -9,7 +9,7 @@ import { supabase } from "@/utils/supabaseClient";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { useEmployee } from "@/context/EmployeeContext";
-import ButtonLoader from "../ButtonLoader";
+import ButtonLoader from "../ButtonLoader.jsx";
 
 const EmployeeCreateComponent = ({ empId }) => {
   const {

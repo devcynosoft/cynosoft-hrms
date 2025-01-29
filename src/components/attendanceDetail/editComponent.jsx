@@ -12,7 +12,7 @@ import moment from "moment";
 import calculateTimeDifference from "@/utils/timeDifference";
 import DatePicker from "react-datepicker";
 import Image from "next/image";
-import ButtonLoader from "../ButtonLoader";
+import ButtonLoader from "../ButtonLoader.jsx";
 
 const AttendanceEditComponent = ({ attendId }) => {
   const {

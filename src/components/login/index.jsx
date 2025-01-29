@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Button, Col, Row } from "react-bootstrap";
-import ButtonLoader from "../ButtonLoader";
+import ButtonLoader from "../ButtonLoader.jsx";
 import useIsMobile from "@/utils/useIsMobile";
 
 const LoginComponent = () => {
