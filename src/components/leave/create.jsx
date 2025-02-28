@@ -403,7 +403,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
                     setValue("start_date", date, { shouldValidate: true })
                   }
                   // maxDate={getValues("end_date")}
-                  minDate={new Date()}
+                  // minDate={new Date()}
                   autoComplete="off"
                 />
               </div>
@@ -436,7 +436,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
                     onChange={(date) =>
                       setValue("end_date", date, { shouldValidate: true })
                     }
-                    minDate={getValues("start_date")}
+                    // minDate={getValues("start_date")}
                     autoComplete="off"
                   />
                 </div>
