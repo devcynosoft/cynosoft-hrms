@@ -156,6 +156,8 @@ const SidebarComponent = () => {
         progress: undefined,
         theme: "colored",
       });
+      setcheckoutLoading(false);
+      setIsHide(false);
     } else {
       toast.error(result?.error, {
         position: "bottom-right",
