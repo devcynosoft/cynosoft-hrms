@@ -358,7 +358,7 @@ const AttendanceEditComponent = ({ attendId }) => {
               <Controller
                 name="checkout_time"
                 control={control}
-                rules={{ required: !attendId && "Check-out time is required" }}
+                // rules={{ required: !attendId && "Check-out time is required" }}
                 render={({ field }) => (
                   <TimePicker
                     className="w-100"
@@ -373,11 +373,11 @@ const AttendanceEditComponent = ({ attendId }) => {
                   />
                 )}
               />
-              {errors.checkout_time && (
+              {/* {errors.checkout_time && (
                 <span className="hrms-field-error">
                   {errors.checkout_time.message}
                 </span>
-              )}
+              )} */}
             </div>
           </div>
           <div className="mt-3">

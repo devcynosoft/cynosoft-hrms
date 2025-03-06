@@ -5,45 +5,32 @@ import { DecryptData } from "./utils/encrypt";
 import { supabase } from "./utils/supabaseClient";
 
 export async function middleware(req) {
-  let isValid = false;
-  let decryptExpireAt;
   const { pathname } = req.nextUrl;
-
   const cookieHeader = req.headers.get("cookie");
-  const adminRoutes = [
-    "/hrms/employee/attendance/create/",
-    "/hrms/employee/attendance/edit/",
-    "/hrms/employee/create/",
-  ];
+  const cookies = cookieHeader ? parse(cookieHeader) : {};
+  const userId = cookies["user_id"];
+  const encryptedExpireAt = req.cookies.get("expires_at");
 
-  const encryptExpireAt = req.cookies.get("expires_at");
-
-  if (encryptExpireAt) {
-    decryptExpireAt = DecryptData(encryptExpireAt.value);
-    isValid = isTokenValid(+decryptExpireAt);
+  let isValid = false;
+  if (encryptedExpireAt) {
+    const decryptedExpireAt = DecryptData(encryptedExpireAt.value);
+    isValid = isTokenValid(+decryptedExpireAt);
   }
-
-  // if (pathname.startsWith("/api/") && !isValid) {
-  //   return new NextResponse(
-  //     JSON.stringify({
-  //       error: "Unauthorized",
-  //       message: "Your session has expired, please log in again.",
-  //     }),
-  //     {
-  //       status: 401,
-  //       headers: { "Content-Type": "application/json" },
-  //     }
-  //   );
-  // }
-
+  console.log("middleware calling");
+  // Public Routes
   if (pathname === "/" || pathname === "/hrms/") {
-    if (isValid) {
-      return NextResponse.redirect(new URL("/hrms/dashboard", req.url));
-    } else {
-      return NextResponse.redirect(new URL("/hrms/login", req.url));
-    }
+    return NextResponse.redirect(
+      new URL(isValid ? "/hrms/dashboard" : "/hrms/login", req.url)
+    );
   }
 
+  if (pathname === "/hrms/login/" || pathname === "/hrms/reset-password/") {
+    return isValid
+      ? NextResponse.redirect(new URL("/hrms/dashboard", req.url))
+      : NextResponse.next();
+  }
+
+  // Protected Routes
   if (
     pathname.startsWith("/hrms/dashboard") ||
     pathname.startsWith("/hrms/employee")
@@ -53,24 +40,21 @@ export async function middleware(req) {
     }
   }
 
-  if (pathname === "/hrms/login/" || pathname === "/hrms/reset-password/") {
-    if (isValid) {
-      return NextResponse.redirect(new URL("/hrms/dashboard", req.url));
-    }
-  }
+  // Admin Routes
+  const adminRoutes = [
+    "/hrms/employee/attendance/create/",
+    "/hrms/employee/attendance/edit/",
+    "/hrms/employee/create/",
+  ];
 
-  const cookies = cookieHeader ? parse(cookieHeader) : {};
-  const userId = cookies["user_id"];
-  if (userId) {
-    const { data: employeeData, error: employeeError } = await supabase
+  if (userId && adminRoutes.some((route) => pathname.startsWith(route))) {
+    const { data: employeeData, error } = await supabase
       .from("employees")
-      .select("*")
+      .select("role")
       .eq("supabase_user_id", userId)
       .single();
-    const isAdminRoute = adminRoutes.some((route) =>
-      pathname.startsWith(route)
-    );
-    if (isAdminRoute && employeeData?.role !== "admin") {
+
+    if (error || employeeData?.role !== "admin") {
       return NextResponse.redirect(new URL("/hrms/unauthorized", req.url));
     }
   }
@@ -79,5 +63,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/hrms/:path*", "/"],
+  matcher: ["/hrms/dashboard/:path*", "/hrms/employee/:path*"],
 };
