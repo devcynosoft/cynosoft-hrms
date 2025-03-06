@@ -33,9 +33,12 @@
 }
 
 .container {
-  margin-top: 50px;
+  /* margin-top: 50px; */
   padding-left: 10px;
   padding-right: 10px;
+  height: 87vh;
+  align-items: center;
+  display: flex;
 }
 .form {
   padding-top: 40px;

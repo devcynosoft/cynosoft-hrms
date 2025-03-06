@@ -488,7 +488,7 @@ const LeaveCreateComponent = ({ leaveId }) => {
                 type="submit"
                 disabled={!isApplicable || isLoading}
               >
-                {isLoading ? <ButtonLoader /> : "Apply"}
+                {isLoading ? <ButtonLoader /> : leaveId ? "update" : "Apply"}
               </Button>
             </div>
           </div>

@@ -377,7 +377,7 @@ const LeaveListComponent = () => {
             setCurrentPage={setCurrentPage}
             setRecordsPerPage={setRecordsPerPage}
             onIconClick={handleIconClick}
-            tableHeight={isMobile ? "30" : "47"}
+            tableHeight={isMobile ? "500" : "395"}
             isLoading={isLoading}
           />
         </div>

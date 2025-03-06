@@ -28,7 +28,7 @@
     padding-bottom: 20px;
     height: -webkit-fill-available;
     left: -265px; /* Initially hidden */
-    transition: left .5s;
+    transition: left 0.5s;
   }
   .crossBtn {
     display: block;
@@ -94,4 +94,37 @@
 }
 .sidebarText a {
   text-decoration: none;
+}
+
+.logoContainer {
+  display: inline-block;
+}
+
+.logoContainer img {
+  transition: filter 0.3s ease;
+}
+
+.logoContainer:hover img {
+  filter: blur(2px);
+}
+
+.deleteBtn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent !important; /* Semi-transparent black */
+  backdrop-filter: blur(4px); /* Transparent blur effect */
+  border: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 50%;
+  box-shadow: none !important;
+  color: white;
+}
+
+.logoContainer:hover .deleteBtn {
+  opacity: 1;
 }

@@ -604,7 +604,7 @@ const EmployeeCreateComponent = ({ empId }) => {
                   ""
                 )}
 
-                <div className="d-flex align-items-center mt-md-3 mt-1">
+                {/* <div className="d-flex align-items-center mt-md-3 mt-1">
                   <span className={`${styles.fieldText}`}>Image Upload:</span>
                   <Dropzone
                     onDrop={handleUpload}
@@ -637,8 +637,8 @@ const EmployeeCreateComponent = ({ empId }) => {
                       );
                     }}
                   </Dropzone>
-                </div>
-                <div className="d-flex justify-content-end">
+                </div> */}
+                <div className="d-flex justify-content-end mt-4">
                   <div className="w-25 mt-2">
                     <Button
                       className={`w-100 hrms-button`}

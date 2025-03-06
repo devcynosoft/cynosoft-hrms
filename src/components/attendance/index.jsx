@@ -264,7 +264,7 @@ function AttendanceComponent() {
           recordsPerPage={recordsPerPage}
           setCurrentPage={setCurrentPage}
           setRecordsPerPage={setRecordsPerPage}
-          tableHeight={isMobile ? "46" : "50"}
+          tableHeight={isMobile ? "350" : "310"}
           isLoading={isLoading}
         />
       </div>

@@ -105,7 +105,7 @@ const CustomPagination = ({
           />
         </Pagination>
       </div>
-      <div>
+      <div className="d-flex justify-content-center gap-1 align-items-center justify-content-md-end w-100">
         Showing{" "}
         <select
           style={{ padding: "0px" }}

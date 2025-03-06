@@ -146,7 +146,7 @@ const EmployeeListComponent = () => {
             setCurrentPage={setCurrentPage}
             setRecordsPerPage={setRecordsPerPage}
             onIconClick={handleIconClick}
-            tableHeight={isMobile ? "46" : "50"}
+            tableHeight={isMobile ? "450" : "380"}
             isLoading={isLoading}
           />
         </div>

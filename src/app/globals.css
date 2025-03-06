@@ -169,6 +169,7 @@ a:active {
 .table-container {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  margin-bottom: 25px;
 }
 .table th {
   background: #0c2d57 !important;

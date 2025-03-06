@@ -17,7 +17,10 @@ const DynamicTable = ({
 }) => {
   return (
     <>
-      <div className="table-container" style={{ height: `${tableHeight}vh` }}>
+      <div
+        className="table-container"
+        style={{ height: `calc(100vh - ${tableHeight}px)` }}
+      >
         <table className="table">
           <thead>
             <tr>

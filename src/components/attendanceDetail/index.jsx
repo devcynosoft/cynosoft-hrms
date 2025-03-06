@@ -231,9 +231,9 @@ const AttendanceDetailComponent = () => {
           </div>
         </div>
         <div
-          className={`d-flex justify-content-start justify-content-md-between mt-3 mb-3 ${styles.btnCont}`}
+          className={`d-flex justify-content-between justify-content-md-between mt-3 mb-3 ${styles.btnCont}`}
         >
-          <Dropdown className="mt-3 mt-md-0">
+          <Dropdown className="mt-3">
             <Dropdown.Toggle
               onClick={filteredPdfHandler}
               variant="success"
@@ -245,7 +245,7 @@ const AttendanceDetailComponent = () => {
             </Dropdown.Toggle>
           </Dropdown>
           <Button
-            className={`hrms-button`}
+            className={`hrms-button mt-3`}
             variant="primary"
             size="md"
             type="submit"
@@ -264,7 +264,7 @@ const AttendanceDetailComponent = () => {
           setCurrentPage={setCurrentPage}
           setRecordsPerPage={setRecordsPerPage}
           onIconClick={handleIconClick}
-          tableHeight={isMobile ? "46" : "50"}
+          tableHeight={isMobile ? "400" : "360"}
           isLoading={isLoading}
         />
       </div>

@@ -1,8 +1,8 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "./sidebar.module.css";
 import { supabase } from "@/utils/supabaseClient";
-import { Button } from "react-bootstrap";
+import { Button, Spinner } from "react-bootstrap";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import { useRouter, usePathname } from "next/navigation";
@@ -11,14 +11,24 @@ import { toast } from "react-toastify";
 import Link from "next/link";
 import NameBadge from "../NameBadge";
 import { useEmployee } from "@/context/EmployeeContext";
+import { Trash2, Upload } from "lucide-react";
 
-const SidebarComponent = ({ employeeData }) => {
+const SidebarComponent = () => {
+  const fileInputRef = useRef(null);
   const router = useRouter();
-  const { logout } = useEmployee();
+  const { logout, employeeData, setEmployeeData } = useEmployee();
+  // const { employeeData, setEmployeeData } = useEmployee();
+
   const [isHide, setIsHide] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutLoading, setcheckoutLoading] = useState(false);
   const [signoutLoading, setSignoutLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleUploadClick = () => {
+    fileInputRef.current.click(); // Trigger hidden file input
+  };
 
   const signoutHandler = async () => {
     setSignoutLoading(true);
@@ -70,7 +80,21 @@ const SidebarComponent = ({ employeeData }) => {
       });
       setIsLoading(false);
       setIsHide(false);
-    } else {
+    } else if (response?.status === 403) {
+      toast.warn(result?.data, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      setIsLoading(false);
+      setIsHide(false);
+    }
+     else {
       toast.error(result?.error, {
         position: "bottom-right",
         autoClose: 5000,
@@ -139,6 +163,126 @@ const SidebarComponent = ({ employeeData }) => {
   };
   const hideHandler = () => {
     setIsHide(true);
+  };
+  const removeImageFromStorage = async (oldFileName) => {
+    if (oldFileName) {
+      const filePath = oldFileName.replace(
+        "https://oxdipgxlwrvifvdifnfj.supabase.co/storage/v1/object/public/cynosoft_employee_images/",
+        ""
+      );
+      const decodedFilePath = decodeURIComponent(filePath);
+      const { data: fileList, error: listError } = await supabase.storage
+        .from("cynosoft_employee_images")
+        .list();
+
+      if (listError) {
+        console.log("Error listing files:", listError);
+        return false;
+      }
+
+      const fileExists = fileList.some((file) => file.name === decodedFilePath);
+      if (!fileExists) {
+        console.log("File does not exist in the bucket:", decodedFilePath);
+        return false;
+      }
+      const { error: deleteError } = await supabase.storage
+        .from("cynosoft_employee_images")
+        .remove([decodedFilePath]);
+
+      if (deleteError) {
+        console.log("Error deleting file:", deleteError);
+        return false;
+      } else {
+        console.log("Old file deleted successfully");
+        return true;
+      }
+    }
+  };
+
+  const uploadImageToStorage = async (file) => {
+    if (employeeData?.pic) {
+      await removeImageFromStorage(employeeData?.pic);
+    }
+    const name = `${new Date().toISOString()}-${file.name.split(".")[0]}`;
+    const fileExt = file.name.split(".").pop();
+    const uniqueFileName = `${name}.${fileExt}`;
+    let { error } = await supabase.storage
+      .from("cynosoft_employee_images")
+      .upload(uniqueFileName, file);
+    if (error) {
+      console.log(error);
+    }
+    const { data: url } = await supabase.storage
+      .from("cynosoft_employee_images")
+      .getPublicUrl(uniqueFileName);
+    if (url) {
+      return url?.publicUrl;
+    }
+  };
+
+  const deleteImage = async (picUrl) => {
+    setDeleting(true);
+    const isPicDeleted = await removeImageFromStorage(picUrl);
+    if (isPicDeleted) {
+      const response = await fetch(
+        `/api/employee/upsert?empId=${employeeData?.id}&userId=${null}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ pic: null }),
+        }
+      );
+      await response.json();
+      if (response.status === 200) {
+        setEmployeeData({ ...employeeData, pic: null });
+        toast.success(`Successfully Image Updated`, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      }
+    }
+    setDeleting(false);
+  };
+  const uploadImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLoading(true);
+    const newImageUrl = await uploadImageToStorage(file);
+    if (newImageUrl) {
+      const response = await fetch(
+        `/api/employee/upsert?empId=${employeeData?.id}&userId=${null}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ pic: newImageUrl }),
+        }
+      );
+      await response.json();
+      if (response.status === 200) {
+        setEmployeeData({ ...employeeData, pic: newImageUrl });
+        setLoading(false);
+        toast.success(`Successfully Image Uploaded`, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      }
+    }
   };
   const getHeading = () => {
     const pathname = usePathname();
@@ -209,23 +353,105 @@ const SidebarComponent = ({ employeeData }) => {
         </div>
         <div className="w-100">
           <div className={`${styles.center}`}>
-            {employeeData?.pic ? (
-              <Image
-                src={employeeData?.pic}
-                alt="Profile pic"
-                width={106}
-                height={106}
-                priority
-                className="hrms-profileImage"
-              />
-            ) : (
-              <NameBadge
-                name={employeeData?.name}
-                fontSize={40}
-                height={106}
-                width={108}
-              />
-            )}
+            <div className={`position-relative ${styles.logoContainer}`}>
+              {employeeData?.pic ? (
+                <>
+                  <Image
+                    src={employeeData?.pic}
+                    alt="Profile pic"
+                    width={106}
+                    height={106}
+                    priority
+                    className="hrms-profileImage"
+                  />
+                  <div className="d-flex">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={uploadImage}
+                      className="d-none" // Hides default file input but still works
+                    />
+                    <Button className={styles.deleteBtn}>
+                      {loading ? (
+                        <Spinner animation="border" size="sm" />
+                      ) : (
+                        <div
+                          style={{
+                            background: "black",
+                            height: "30px",
+                            width: "30px",
+                            borderRadius: "5px",
+                            opacity: "0.5",
+                          }}
+                        >
+                          <Upload
+                            onClick={handleUploadClick}
+                            className="w-5 h-5"
+                          />
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          background: "black",
+                          height: "30px",
+                          width: "30px",
+                          borderRadius: "5px",
+                          opacity: "0.5",
+                        }}
+                      >
+                        {deleting ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <Trash2
+                            onClick={() => deleteImage(employeeData?.pic)}
+                            className="w-5 h-5"
+                          />
+                        )}
+                      </div>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className={`position-relative ${styles.logoContainer}`}>
+                  <>
+                    <NameBadge
+                      name={employeeData?.name}
+                      fontSize={40}
+                      height={106}
+                      width={108}
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={uploadImage}
+                      className="d-none"
+                    />
+                    <Button className={styles.deleteBtn}>
+                      {loading ? (
+                        <Spinner animation="border" size="sm" />
+                      ) : (
+                        <div
+                          style={{
+                            background: "black",
+                            height: "30px",
+                            width: "30px",
+                            borderRadius: "5px",
+                            opacity: "0.5",
+                          }}
+                        >
+                          <Upload
+                            onClick={handleUploadClick}
+                            className="w-5 h-5"
+                          />
+                        </div>
+                      )}
+                    </Button>
+                  </>
+                </div>
+              )}
+            </div>
 
             <div className={styles.profileName}>
               <span>
