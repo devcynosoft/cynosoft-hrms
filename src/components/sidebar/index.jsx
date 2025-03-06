@@ -93,8 +93,7 @@ const SidebarComponent = () => {
       });
       setIsLoading(false);
       setIsHide(false);
-    }
-     else {
+    } else {
       toast.error(result?.error, {
         position: "bottom-right",
         autoClose: 5000,
@@ -146,6 +145,17 @@ const SidebarComponent = () => {
       });
       setcheckoutLoading(false);
       setIsHide(false);
+    } else if (response?.status === 403) {
+      toast.warn(result?.data, {
+        position: "bottom-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
     } else {
       toast.error(result?.error, {
         position: "bottom-right",
