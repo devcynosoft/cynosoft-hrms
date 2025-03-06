@@ -5,6 +5,20 @@ import isTokenValid from "@/utils/tokenValidation";
 import axios from "axios";
 
 export async function PATCH(req) {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  const clientIP = forwardedFor ? forwardedFor.split(",")[0].trim() : "Unknown";
+
+  const allowedIP = process.env.NEXT_PUBLIC_OFFICE_IP; // office's public IP
+  if (clientIP !== allowedIP) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        data: "Access denied. Must be on office network.",
+      }),
+      { status: 403 }
+    );
+  }
+
   let isValid = false;
   let decryptExpireAt;
   const encryptExpireAt = req.cookies.get("expires_at");
