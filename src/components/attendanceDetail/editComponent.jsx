@@ -94,30 +94,36 @@ const AttendanceEditComponent = ({ attendId }) => {
   const onSubmit = async (attendData) => {
     setIsLoading(true);
     const { name, checkin_time, checkout_time, date } = attendData;
-    const dbCheckinTime = convertToFullDateString(
-      checkin_time,
-      moment(date).format("YYYY-MM-DD")
-    );
-    const dbCheckoutTime = convertToFullDateString(
-      checkout_time,
-      moment(date).format("YYYY-MM-DD")
-    );
+    let dbCheckinTime = null;
+    let dbCheckoutTime = null;
+    if (checkin_time) {
+      dbCheckinTime = convertToFullDateString(
+        checkin_time,
+        moment(date).format("YYYY-MM-DD")
+      );
+    }
+    if (checkout_time) {
+      dbCheckoutTime = convertToFullDateString(
+        checkout_time,
+        moment(date).format("YYYY-MM-DD")
+      );
+    }
 
     if (attendId) {
-      const timeDifference = calculateTimeDifference(
-        dbCheckinTime,
-        dbCheckoutTime
-      );
+      let timeDifference = null;
+      if (dbCheckinTime && dbCheckoutTime) {
+        timeDifference = calculateTimeDifference(dbCheckinTime, dbCheckoutTime);
+      }
+
       let atendData = {
         checkin_time: dbCheckinTime,
-        checkout_time: checkout_time ? dbCheckoutTime : null,
-        total_hour: checkin_time && checkout_time ? timeDifference : null,
-        early_out:
-          checkin_time && checkout_time
-            ? timeDifference >= "09:00:00"
-              ? false
-              : true
-            : null,
+        checkout_time: dbCheckoutTime,
+        total_hour: timeDifference,
+        early_out: timeDifference
+          ? timeDifference >= "09:00:00"
+            ? false
+            : true
+          : null,
       };
       const response = await fetch(
         `/api/attendance/upsert?attendId=${attendId}`,
@@ -159,16 +165,21 @@ const AttendanceEditComponent = ({ attendId }) => {
         });
       }
     } else {
-      const timeDifference = calculateTimeDifference(
-        dbCheckinTime,
-        dbCheckoutTime
-      );
+      let timeDifference = null;
+      if (dbCheckinTime && dbCheckoutTime) {
+        timeDifference = calculateTimeDifference(dbCheckinTime, dbCheckoutTime);
+      }
+
       let atendData = {
         supabase_user_id: name.value,
         checkin_time: dbCheckinTime,
         checkout_time: dbCheckoutTime,
         total_hour: timeDifference,
-        early_out: timeDifference >= "09:00:00" ? false : true,
+        early_out: timeDifference
+          ? timeDifference >= "09:00:00"
+            ? false
+            : true
+          : null,
       };
       const response = await fetch("/api/attendance/upsert", {
         method: "POST",
