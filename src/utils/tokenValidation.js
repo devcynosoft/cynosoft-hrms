@@ -1,7 +1,6 @@
 const isTokenValid = (expiresAt) => {
-    const currentTime = Math.floor(Date.now() / 1000);
-    return currentTime < expiresAt;
-  };
-  
-  export default isTokenValid;
-  
+  const tokenExpiration = expiresAt.exp * 1000;
+  return Date.now() < tokenExpiration;
+};
+
+export default isTokenValid;

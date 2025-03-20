@@ -1,4 +1,3 @@
-import { DecryptData } from "@/utils/encrypt";
 import { supabase } from "@/utils/supabaseClient";
 import isTokenValid from "@/utils/tokenValidation";
 import axios from "axios";
@@ -8,7 +7,7 @@ export async function POST(req) {
   const clientIP = forwardedFor ? forwardedFor.split(",")[0].trim() : "Unknown";
 
   const allowedIP = process.env.NEXT_PUBLIC_OFFICE_IP; // office's public IP
-  if (clientIP !== allowedIP) {
+  if (clientIP !== allowedIP && process.env.NEXT_PUBLIC_NODE_ENV !== "local") {
     return new Response(
       JSON.stringify({
         success: false,
@@ -19,11 +18,10 @@ export async function POST(req) {
   }
 
   let isValid = false;
-  let decryptExpireAt;
-  const encryptExpireAt = req.cookies.get("expires_at");
-  if (encryptExpireAt) {
-    decryptExpireAt = DecryptData(encryptExpireAt.value);
-    isValid = isTokenValid(+decryptExpireAt);
+  const token = req.cookies.get("access_token");
+  const decodedToken = JSON.parse(atob(token?.value?.split(".")[1]));
+  if (decodedToken) {
+    isValid = isTokenValid(decodedToken);
   }
   if (!isValid) {
     return new Response(
@@ -82,8 +80,10 @@ export async function POST(req) {
           }
         );
       }
-      const text = `Checked In - ${employeeData?.name}`;
-      await axios.post(process.env.NEXT_PUBLIC_WEBHOOK_API, { text });
+      if (process.env.NEXT_PUBLIC_NODE_ENV !== "local") {
+        const text = `Checked In - ${employeeData?.name}`;
+        await axios.post(process.env.NEXT_PUBLIC_WEBHOOK_API, { text });
+      }
       return new Response(
         JSON.stringify({
           success: true,

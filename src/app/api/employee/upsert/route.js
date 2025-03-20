@@ -1,14 +1,12 @@
-import { DecryptData } from "@/utils/encrypt";
 import { supabase } from "@/utils/supabaseClient";
 import isTokenValid from "@/utils/tokenValidation";
 
 export async function POST(req) {
   let isValid = false;
-  let decryptExpireAt;
-  const encryptExpireAt = req.cookies.get("expires_at");
-  if (encryptExpireAt) {
-    decryptExpireAt = DecryptData(encryptExpireAt.value);
-    isValid = isTokenValid(+decryptExpireAt);
+  const token = req.cookies.get("access_token");
+  const decodedToken = JSON.parse(atob(token?.value?.split(".")[1]));
+  if (decodedToken) {
+    isValid = isTokenValid(decodedToken);
   }
   if (!isValid) {
     return new Response(
@@ -56,11 +54,10 @@ export async function POST(req) {
 
 export async function PATCH(req) {
   let isValid = false;
-  let decryptExpireAt;
-  const encryptExpireAt = req.cookies.get("expires_at");
-  if (encryptExpireAt) {
-    decryptExpireAt = DecryptData(encryptExpireAt.value);
-    isValid = isTokenValid(+decryptExpireAt);
+  const token = req.cookies.get("access_token");
+  const decodedToken = JSON.parse(atob(token?.value?.split(".")[1]));
+  if (decodedToken) {
+    isValid = isTokenValid(decodedToken);
   }
   if (!isValid) {
     return new Response(

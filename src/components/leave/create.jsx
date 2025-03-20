@@ -84,7 +84,6 @@ const LeaveCreateComponent = ({ leaveId }) => {
           console.error("Error fetching leave data:", error);
         } else {
           // Map leave_duration to numeric values (HalfDay = 0.5, FullDay = 1)
-          console.log(data, "data");
           const totalDuration = data?.reduce((sum, leave) => {
             const leaveMultiplier =
               leave?.leave_type_duration === "Half Day"

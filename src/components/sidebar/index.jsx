@@ -36,9 +36,9 @@ const SidebarComponent = () => {
     if (error) {
       console.log(error);
     }
-    Cookies.remove("expires_at");
     Cookies.remove("user_id");
     Cookies.remove("signin_toast");
+    Cookies.remove("access_token");
     Cookies.set("signout_toast", "true");
     setSignoutLoading(false);
     logout();

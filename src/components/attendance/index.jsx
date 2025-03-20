@@ -27,49 +27,56 @@ function AttendanceComponent() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const getEmployeeDetail = async () => {
-      const startOfToday = new Date(startDate);
-      startOfToday.setHours(0, 0, 0, 0);
+  const getEmployeeDetail = async () => {
+    if (!employeeData?.supabase_user_id) return;
+    const startOfToday = new Date(startDate);
+    startOfToday.setHours(0, 0, 0, 0);
 
-      const endOfToday = new Date(endDate);
-      endOfToday.setHours(23, 59, 59, 999);
-      const start = (currentPage - 1) * recordsPerPage;
-      const end = start + recordsPerPage - 1;
-      setIsLoading(true);
-      const response = await fetch(
-        `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const result = await response.json();
-      if (response.status === 200) {
-        const formattedData = result?.data?.data?.map((att, index) => ({
-          id: att?.id,
-          date: att?.checkin_time
-            ? moment(att?.checkin_time).format("YYYY-MM-DD")
-            : "",
-          checkIn: att?.checkin_time
-            ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
-            : "",
-          checkOut: att?.checkout_time
-            ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
-            : "",
-          hour: att?.total_hour,
-        }));
-        setIsLoading(false);
-        setAttendanceList(formattedData);
-        setTotalRecord(result?.data?.count);
+    const endOfToday = new Date(endDate);
+    endOfToday.setHours(23, 59, 59, 999);
+    const start = (currentPage - 1) * recordsPerPage;
+    const end = start + recordsPerPage - 1;
+    setIsLoading(true);
+    const response = await fetch(
+      `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    };
+    );
+    const result = await response.json();
+    if (response.status === 200) {
+      const formattedData = result?.data?.data?.map((att, index) => ({
+        id: att?.id,
+        date: att?.checkin_time
+          ? moment(att?.checkin_time).format("YYYY-MM-DD")
+          : "",
+        checkIn: att?.checkin_time
+          ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
+          : "",
+        checkOut: att?.checkout_time
+          ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
+          : "",
+        hour: att?.total_hour,
+      }));
+      setIsLoading(false);
+      setAttendanceList(formattedData);
+      setTotalRecord(result?.data?.count);
+    }
+  };
+
+  useEffect(() => {
     if (employeeData) {
       getEmployeeDetail();
     }
-    supabase
+  }, [currentPage, recordsPerPage, startDate, endDate, employeeData]);
+
+  useEffect(() => {
+    if (!employeeData?.supabase_user_id) return;
+
+    const subscription = supabase
       .channel("table-db-changes")
       .on(
         "postgres_changes",
@@ -79,11 +86,20 @@ function AttendanceComponent() {
           table: "attendance",
         },
         (payload) => {
-          getEmployeeDetail();
+          // Only update if the change is related to the current user
+          if (
+            payload.new?.supabase_user_id === employeeData?.supabase_user_id
+          ) {
+            getEmployeeDetail();
+          }
         }
       )
       .subscribe();
-  }, [currentPage, recordsPerPage, startDate, endDate, employeeData]);
+
+    return () => {
+      subscription.unsubscribe(); // Cleanup on unmount
+    };
+  }, [employeeData?.supabase_user_id]);
 
   useEffect(() => {
     const loginToast = Cookies.get("signin_toast");
@@ -123,23 +139,6 @@ function AttendanceComponent() {
     },
   ];
 
-  // const allPdfHandler = async () => {
-  //   const { data, error } = await supabase
-  //     .from("attendance")
-  //     .select(
-  //       `
-  //       id,
-  //       checkin_time,
-  //       checkout_time,
-  //       total_hour,
-  //       employees(name)
-  //     `
-  //     )
-  //     .eq("supabase_user_id", employeeData?.supabase_user_id)
-  //     .order("checkin_time", { ascending: false })
-  //     .eq("employees.is_current", true);
-  //   generateAttendancePdf(data);
-  // };
   const filteredPdfHandler = async () => {
     try {
       if (startDate || endDate) {

@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabaseClient";
 import Cookies from "js-cookie";
-import { EncryptData } from "@/utils/encrypt";
 import { useForm } from "react-hook-form";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -105,8 +104,7 @@ const LoginComponent = () => {
         } else {
           Cookies.set("user_id", data?.user?.id);
           Cookies.set("signin_toast", "true");
-          const dataExp = EncryptData(data?.session?.expires_at);
-          Cookies.set("expires_at", dataExp);
+          Cookies.set("access_token", data?.session?.access_token);
           setIsLoading(false);
           router.push("/hrms/dashboard");
         }

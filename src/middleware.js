@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { parse } from "cookie";
 import isTokenValid from "./utils/tokenValidation";
-import { DecryptData } from "./utils/encrypt";
 import { supabase } from "./utils/supabaseClient";
 
 export async function middleware(req) {
@@ -9,12 +8,15 @@ export async function middleware(req) {
   const cookieHeader = req.headers.get("cookie");
   const cookies = cookieHeader ? parse(cookieHeader) : {};
   const userId = cookies["user_id"];
-  const encryptedExpireAt = req.cookies.get("expires_at");
+  const token = req.cookies.get("access_token");
+  if (!token) {
+    return NextResponse.redirect(new URL("/hrms/login", req.url));
+  }
+  const decodedToken = JSON.parse(atob(token?.value?.split(".")[1]));
 
   let isValid = false;
-  if (encryptedExpireAt) {
-    const decryptedExpireAt = DecryptData(encryptedExpireAt.value);
-    isValid = isTokenValid(+decryptedExpireAt);
+  if (decodedToken) {
+    isValid = isTokenValid(decodedToken);
   }
   console.log("middleware calling");
   // Public Routes
@@ -35,7 +37,7 @@ export async function middleware(req) {
     pathname.startsWith("/hrms/dashboard") ||
     pathname.startsWith("/hrms/employee")
   ) {
-    if (!isValid) {
+    if (!isTokenValid(decodedToken)) {
       return NextResponse.redirect(new URL("/hrms/login", req.url));
     }
   }
