@@ -65,5 +65,9 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/hrms/dashboard/:path*", "/hrms/employee/:path*"],
+  matcher: [
+    "/hrms/dashboard/:path*",
+    "/hrms/employee/:path*",
+    "/hrms/reset-password/",
+  ],
 };

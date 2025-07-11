@@ -86,21 +86,46 @@ const EmployeeCreateComponent = ({ empId }) => {
         let sickLeavesUsed = 0;
         let casualLeavesUsed = 0;
 
+        // Fiscal year: July 1 to June 30
+        const today = new Date();
+        const fiscalYearStart =
+          today.getMonth() + 1 >= 7
+            ? new Date(today.getFullYear(), 6, 1)
+            : new Date(today.getFullYear() - 1, 6, 1);
+        const fiscalYearEnd = new Date(
+          fiscalYearStart.getFullYear() + 1,
+          5,
+          30,
+          23,
+          59,
+          59,
+          999
+        );
+
         result?.data?.data?.forEach((leave) => {
-          const multiplier =
-            leave.leave_type_duration === "Half Day"
-              ? 0.5
-              : leave.leave_type_duration === "Full Day"
-              ? 1
-              : 0; // Default to 0 for unrecognized leave_type_duration
-          // Calculate the effective leave days
-          const effectiveLeaveDays = leave.duration * multiplier;
-          if (leave.leave_type === "Annual") {
-            annualLeavesUsed += effectiveLeaveDays;
-          } else if (leave.leave_type === "Sick") {
-            sickLeavesUsed += effectiveLeaveDays;
-          } else if (leave.leave_type === "Casual") {
-            casualLeavesUsed += effectiveLeaveDays;
+          const leaveStart = new Date(leave.start_date);
+          const leaveEnd = new Date(leave.end_date);
+
+          const overlapsFiscalYear =
+            leaveStart <= fiscalYearEnd && leaveEnd >= fiscalYearStart;
+
+          if (overlapsFiscalYear) {
+            const multiplier =
+              leave.leave_type_duration === "Half Day"
+                ? 0.5
+                : leave.leave_type_duration === "Full Day"
+                ? 1
+                : 0;
+
+            const effectiveLeaveDays = leave.duration * multiplier;
+
+            if (leave.leave_type === "Annual") {
+              annualLeavesUsed += effectiveLeaveDays;
+            } else if (leave.leave_type === "Sick") {
+              sickLeavesUsed += effectiveLeaveDays;
+            } else if (leave.leave_type === "Casual") {
+              casualLeavesUsed += effectiveLeaveDays;
+            }
           }
         });
 
@@ -111,6 +136,7 @@ const EmployeeCreateComponent = ({ empId }) => {
         console.error("Error fetching leave data:", result?.error);
       }
     };
+
     if (empId) {
       getSingleEmployeeData();
     }
