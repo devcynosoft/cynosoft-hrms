@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import CalculateDaysDifference from "@/utils/daysDifference";
 import useIsMobile from "@/utils/useIsMobile";
 import ButtonLoader from "../ButtonLoader.jsx";
+import moment from "moment";
 
 const LeaveCreateComponent = ({ leaveId }) => {
   const {
@@ -73,26 +74,39 @@ const LeaveCreateComponent = ({ leaveId }) => {
   useEffect(() => {
     const getDaysOfLeaveSelected = async () => {
       try {
+        const currentDate = moment();
+        const currentYear = currentDate.year();
+
+        const fiscalYearStart =
+          currentDate.month() >= 6 // July or after
+            ? moment(`${currentYear}-07-01`).startOf("day")
+            : moment(`${currentYear - 1}-07-01`).startOf("day");
+
+        const fiscalYearEnd = fiscalYearStart
+          .clone()
+          .add(1, "year")
+          .subtract(1, "day")
+          .endOf("day");
         const { data, error } = await supabase
           .from("leaves")
           .select("duration, leave_type_duration")
           .eq("supabase_user_id", employeeData?.supabase_user_id)
           .eq("approval_status", "Approved")
-          .eq("leave_type", selectedLeaveType);
+          .eq("leave_type", selectedLeaveType)
+          .gte("created_at", fiscalYearStart.toISOString())
+          .lte("created_at", fiscalYearEnd.toISOString());
 
         if (error) {
           console.error("Error fetching leave data:", error);
         } else {
-          // Map leave_duration to numeric values (HalfDay = 0.5, FullDay = 1)
           const totalDuration = data?.reduce((sum, leave) => {
             const leaveMultiplier =
               leave?.leave_type_duration === "Half Day"
                 ? 0.5
                 : leave?.leave_type_duration === "Full Day"
                 ? 1
-                : 0; // Default to 0 if leave_type_duration is not defined
+                : 0;
 
-            // Calculate effective leave duration
             const effectiveLeaveDuration = leave?.duration * leaveMultiplier;
             return sum + effectiveLeaveDuration;
           }, 0);
