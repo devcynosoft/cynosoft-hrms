@@ -32,19 +32,13 @@ const SidebarComponent = () => {
 
   const signoutHandler = async () => {
     setSignoutLoading(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.log(error);
-    }
-    Cookies.remove("user_id");
-    Cookies.remove("signin_toast");
-    Cookies.remove("access_token");
-    Cookies.set("signout_toast", "true");
-    setSignoutLoading(false);
     logout();
-    router.push("/hrms/login");
   };
   const checkinHandler = async () => {
+    if (!employeeData) {
+      logout();
+      return;
+    }
     setIsLoading(true);
     const response = await fetch("/api/checkin", {
       method: "POST",
@@ -110,6 +104,10 @@ const SidebarComponent = () => {
   };
 
   const checkoutHandler = async () => {
+    if (!employeeData) {
+      logout();
+      return;
+    }
     setcheckoutLoading(true);
     const response = await fetch("/api/checkout", {
       method: "PATCH",
@@ -482,7 +480,7 @@ const SidebarComponent = () => {
               onClick={checkinHandler}
               className={styles.bgWhite}
               size="sm"
-              disabled={isLoading}
+              disabled={isLoading || !employeeData}
             >
               Check In
             </Button>
@@ -490,7 +488,7 @@ const SidebarComponent = () => {
               onClick={checkoutHandler}
               className={styles.bgWhite}
               size="sm"
-              disabled={checkoutLoading}
+              disabled={checkoutLoading || !employeeData}
             >
               Check Out
             </Button>

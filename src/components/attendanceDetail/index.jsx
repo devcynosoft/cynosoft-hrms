@@ -26,6 +26,7 @@ const AttendanceDetailComponent = () => {
   const [endDate, setEndDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -37,51 +38,51 @@ const AttendanceDetailComponent = () => {
     };
   }, [name]);
 
-  useEffect(() => {
-    const getEmployeeAttendance = async () => {
-      const startOfToday = new Date(startDate);
-      startOfToday.setHours(0, 0, 0, 0);
+  const getEmployeeAttendance = async () => {
+    const startOfToday = new Date(startDate);
+    startOfToday.setHours(0, 0, 0, 0);
 
-      const endOfToday = new Date(endDate);
-      endOfToday.setHours(23, 59, 59, 999);
+    const endOfToday = new Date(endDate);
+    endOfToday.setHours(23, 59, 59, 999);
 
-      const start = (currentPage - 1) * recordsPerPage;
-      const end = start + recordsPerPage - 1;
-      setIsLoading(true);
-      const response = await fetch(
-        `/api/attendance/get-all?start=${start}&end=${end}&name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const result = await response.json();
-
-      if (response.status === 200) {
-        const formattedData = result?.data?.data?.map((att, index) => ({
-          id: att?.id,
-          date: att?.checkin_time
-            ? moment(att?.checkin_time).format("YYYY-MM-DD")
-            : "",
-          name: att?.employees?.name,
-          checkIn: att?.checkin_time
-            ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
-            : "",
-          checkOut: att?.checkout_time
-            ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
-            : "",
-          hour: att?.total_hour
-            ? `${att?.total_hour}${att.early_out ? " - Early out" : ""}`
-            : "",
-        }));
-        setIsLoading(false);
-        setEmployeeData(formattedData);
-        setTotalRecord(result?.data?.count);
+    const start = (currentPage - 1) * recordsPerPage;
+    const end = start + recordsPerPage - 1;
+    setIsLoading(true);
+    const response = await fetch(
+      `/api/attendance/get-all?start=${start}&end=${end}&name=${debouncedName}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    };
+    );
+
+    const result = await response.json();
+
+    if (response.status === 200) {
+      const formattedData = result?.data?.data?.map((att, index) => ({
+        id: att?.id,
+        date: att?.checkin_time
+          ? moment(att?.checkin_time).format("YYYY-MM-DD")
+          : "",
+        name: att?.employees?.name,
+        checkIn: att?.checkin_time
+          ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
+          : "",
+        checkOut: att?.checkout_time
+          ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
+          : "",
+        hour: att?.total_hour
+          ? `${att?.total_hour}${att.early_out ? " - Early out" : ""}`
+          : "",
+      }));
+      setIsLoading(false);
+      setEmployeeData(formattedData);
+      setTotalRecord(result?.data?.count);
+    }
+  };
+  useEffect(() => {
     getEmployeeAttendance();
   }, [currentPage, recordsPerPage, debouncedName, startDate, endDate]);
 
@@ -109,12 +110,85 @@ const AttendanceDetailComponent = () => {
     {
       label: "Action",
       isIcon: true,
-      icon: "/assets/icons/Edit.svg",
+      icons: [
+        {
+          src: "/assets/icons/Edit.svg",
+          alt: "Edit",
+          action: "edit",
+        },
+        {
+          src: "/assets/icons/Delete.svg",
+          alt: "Delete",
+          action: "delete",
+        },
+      ],
     },
   ];
 
   const handleIconClick = (rowData) => {
     router.push(`/hrms/employee/attendance/edit/${rowData?.id}`);
+  };
+
+  const handleDeleteClick = async (rowData) => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the attendance record for ${rowData?.name} on ${rowData?.date}?`
+      )
+    ) {
+      setDeleteLoading(true);
+      try {
+        const response = await fetch(
+          `/api/attendance/delete?attendId=${rowData?.id}`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const result = await response.json();
+
+        if (response.status === 200) {
+          toast.success("Attendance record deleted successfully", {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+          // Refresh the data
+          getEmployeeAttendance();
+        } else {
+          toast.error(result?.error || "Failed to delete attendance record", {
+            position: "bottom-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+        }
+      } catch (error) {
+        toast.error("Something went wrong while deleting the record", {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      } finally {
+        setDeleteLoading(false);
+      }
+    }
   };
 
   const filteredPdfHandler = async () => {
@@ -264,8 +338,9 @@ const AttendanceDetailComponent = () => {
           setCurrentPage={setCurrentPage}
           setRecordsPerPage={setRecordsPerPage}
           onIconClick={handleIconClick}
+          onDeleteClick={handleDeleteClick}
           tableHeight={isMobile ? "400" : "360"}
-          isLoading={isLoading}
+          isLoading={isLoading || deleteLoading}
         />
       </div>
     </div>

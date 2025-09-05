@@ -12,6 +12,7 @@ const DynamicTable = ({
   setCurrentPage,
   setRecordsPerPage,
   onIconClick,
+  onDeleteClick,
   tableHeight,
   isLoading,
 }) => {
@@ -44,14 +45,35 @@ const DynamicTable = ({
                   {config?.map((column, colIndex) => (
                     <td key={colIndex}>
                       {column?.isIcon ? (
-                        <Image
-                          style={{ cursor: "pointer" }}
-                          src={column.icon}
-                          width={20}
-                          height={20}
-                          alt="image"
-                          onClick={() => onIconClick(row)}
-                        />
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          {column.icons?.map((icon, iconIndex) => (
+                            <Image
+                              key={iconIndex}
+                              style={{ cursor: "pointer" }}
+                              src={icon.src}
+                              width={20}
+                              height={20}
+                              alt={icon.alt || "image"}
+                              onClick={() => {
+                                if (icon.action === "edit") {
+                                  onIconClick(row);
+                                } else if (icon.action === "delete") {
+                                  onDeleteClick(row);
+                                }
+                              }}
+                            />
+                          ))}
+                          {column.icon && (
+                            <Image
+                              style={{ cursor: "pointer" }}
+                              src={column.icon}
+                              width={20}
+                              height={20}
+                              alt="image"
+                              onClick={() => onIconClick(row)}
+                            />
+                          )}
+                        </div>
                       ) : column?.key === "approval_status" ? (
                         <div
                           className={`${

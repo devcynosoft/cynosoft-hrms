@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
 
 const EmployeeContext = createContext(null);
 
@@ -16,6 +17,7 @@ const EmployeeContext = createContext(null);
 export const useEmployee = () => useContext(EmployeeContext);
 
 export const EmployeeProvider = ({ children }) => {
+  const router = useRouter();
   const [employeeData, setEmployeeData] = useState(null);
   const userId = Cookies.get("user_id");
 
@@ -52,8 +54,17 @@ export const EmployeeProvider = ({ children }) => {
     }
   }, [userId, getEmployeeDetail]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.log(error);
+    }
     setEmployeeData(null);
+    Cookies.remove("user_id");
+    Cookies.remove("signin_toast");
+    Cookies.remove("access_token");
+    Cookies.set("signout_toast", "true");
+    router.push("/hrms/login");
   }, []);
 
   return (
