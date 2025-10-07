@@ -39,11 +39,11 @@ export async function POST(req) {
     const today = new Date();
     const currentTime = new Date();
 
-    // Set the start time to 10:00 AM today
+    //Set the start time to 10:00 AM today
     const startTime = new Date(today);
     startTime.setHours(0, 0, 0, 0);
 
-    // Set the end time to 11:59 PM today
+    //Set the end time to 11:59 PM today
     const endTime = new Date(today);
     endTime.setHours(23, 59, 59, 999);
 
