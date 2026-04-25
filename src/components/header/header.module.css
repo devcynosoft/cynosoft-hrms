@@ -14,6 +14,104 @@
     height: 80px;
     padding-right: 50px;
   }
+
+  .notificationWrap {
+    position: relative;
+    margin-right: 16px;
+  }
+
+  .notificationBtn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dropdown {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    width: 360px;
+    max-height: 420px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    z-index: 2000;
+  }
+
+  .dropdownHeader {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .dropdownTitle {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .markAll {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .itemUnread {
+    background: rgba(37, 99, 235, 0.06);
+  }
+
+  .itemMessage {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .itemMeta {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.55);
+  }
+
+  .emptyState {
+    padding: 18px 14px;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.55);
+  }
   @media (max-width: 760px) {
     .header {
       display: none !important;

@@ -7,7 +7,7 @@ import Image from "next/image";
 import DatePicker from "react-datepicker";
 import DynamicTable from "../table";
 import { supabase } from "@/utils/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEmployee } from "@/context/EmployeeContext";
 import moment from "moment";
 import { toast } from "react-toastify";
@@ -16,6 +16,7 @@ import useIsMobile from "@/utils/useIsMobile";
 
 const LeaveListComponent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { employeeData } = useEmployee();
   const [name, setName] = useState("");
@@ -34,6 +35,11 @@ const LeaveListComponent = () => {
   const [sickUsed, setSickUsed] = useState(0);
   const [casualUsed, setCasualUsed] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [autoOpenedLeaveId, setAutoOpenedLeaveId] = useState(null);
+
+  const openLeaveIdFromQuery = searchParams?.get("openLeaveId")
+    ? Number(searchParams.get("openLeaveId"))
+    : null;
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -93,6 +99,47 @@ const LeaveListComponent = () => {
     startDate,
     leaveStatus,
   ]);
+
+  useEffect(() => {
+    const autoOpen = async () => {
+      if (!openLeaveIdFromQuery) return;
+      if (!employeeData) return;
+      if (autoOpenedLeaveId === openLeaveIdFromQuery) return;
+
+      const existing = leavesData?.find((l) => +l.id === +openLeaveIdFromQuery);
+      if (existing) {
+        setSelectedRowData(existing);
+        setModalVisible(true);
+        setAutoOpenedLeaveId(openLeaveIdFromQuery);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/leave/get-all?leaveId=${openLeaveIdFromQuery}&userId=${
+          employeeData?.role !== "admin" ? employeeData?.supabase_user_id : null
+        }`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200 && result?.data?.[0]) {
+        const leave = result.data[0];
+        const normalized = {
+          ...leave,
+          name: leave?.employees?.name,
+          start_date: moment(leave?.start_date).format("YYYY-MM-DD"),
+          end_date: moment(leave?.end_date).format("YYYY-MM-DD"),
+        };
+        setSelectedRowData(normalized);
+        setModalVisible(true);
+        setAutoOpenedLeaveId(openLeaveIdFromQuery);
+      }
+    };
+
+    autoOpen();
+  }, [openLeaveIdFromQuery, employeeData, leavesData, autoOpenedLeaveId]);
 
   useEffect(() => {
     const getLeavesCount = async () => {
