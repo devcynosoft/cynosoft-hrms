@@ -1,8 +1,12 @@
 import LeaveListComponent from "@/components/leave/list";
-import React from "react";
+import React, { Suspense } from "react";
 
 const EmployeeList = () => {
-  return <LeaveListComponent />;
+  return (
+    <Suspense fallback={<div />}>
+      <LeaveListComponent />
+    </Suspense>
+  );
 };
 
 export default EmployeeList;
