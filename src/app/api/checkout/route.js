@@ -4,19 +4,19 @@ import isTokenValid from "@/utils/tokenValidation";
 import axios from "axios";
 
 export async function PATCH(req) {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  const clientIP = forwardedFor ? forwardedFor.split(",")[0].trim() : "Unknown";
+  // const forwardedFor = req.headers.get("x-forwarded-for");
+  // const clientIP = forwardedFor ? forwardedFor.split(",")[0].trim() : "Unknown";
 
-  const allowedIP = process.env.NEXT_PUBLIC_OFFICE_IP; // office's public IP
-  if (clientIP !== allowedIP && process.env.NEXT_PUBLIC_NODE_ENV !== "local") {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        data: "Access denied. Must be on office network.",
-      }),
-      { status: 403 }
-    );
-  }
+  // const allowedIP = process.env.NEXT_PUBLIC_OFFICE_IP; // office's public IP
+  // if (clientIP !== allowedIP && process.env.NEXT_PUBLIC_NODE_ENV !== "local") {
+  //   return new Response(
+  //     JSON.stringify({
+  //       success: false,
+  //       data: "Access denied. Must be on office network.",
+  //     }),
+  //     { status: 403 }
+  //   );
+  // }
 
   let isValid = false;
   const token = req.cookies.get("access_token");
