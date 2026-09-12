@@ -1,0 +1,687 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: var(--hrms-space-lg);
+  font-family: var(--font-inter), sans-serif;
+  color: var(--hrms-on-surface);
+  overflow-x: hidden;
+}
+
+/* ---------- Header ---------- */
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hrms-space-sm);
+}
+
+@media (min-width: 768px) {
+  .pageHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--hrms-space-xs);
+  margin-bottom: 0.25rem;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-on-surface-variant);
+}
+
+.breadcrumbLink {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.breadcrumbLink:hover {
+  color: var(--hrms-primary);
+}
+
+.breadcrumbCurrent {
+  color: var(--hrms-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hrms-space-sm);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-plus-jakarta), sans-serif;
+  font-size: clamp(1.375rem, 4vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--hrms-on-surface);
+  letter-spacing: -0.02em;
+}
+
+.fiscalBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  background: var(--hrms-surface-container-high);
+  color: var(--hrms-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.fiscalDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--hrms-tertiary-fixed);
+  flex-shrink: 0;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hrms-space-sm);
+  align-self: flex-start;
+}
+
+@media (min-width: 768px) {
+  .headerActions {
+    align-self: auto;
+  }
+}
+
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--hrms-surface-container-lowest);
+  color: var(--hrms-on-surface);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  box-shadow: var(--hrms-shadow-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btnGhost:hover {
+  background: var(--hrms-surface-container-low);
+}
+
+.btnCancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--hrms-surface-container-high);
+  color: var(--hrms-on-surface);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btnCancel:hover {
+  background: var(--hrms-surface-container-highest);
+}
+
+.btnSubmit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 2rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--hrms-secondary-container);
+  color: var(--hrms-on-secondary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  box-shadow: var(--hrms-shadow-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btnSubmit:hover:not(:disabled) {
+  background: var(--hrms-secondary);
+  box-shadow: 0 8px 20px rgba(174, 49, 0, 0.2);
+}
+
+.btnSubmit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ---------- Layout grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--hrms-space-lg);
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .colMain {
+    grid-column: span 8;
+  }
+
+  .colSide {
+    grid-column: span 4;
+  }
+}
+
+.colMain,
+.colSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hrms-space-lg);
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ---------- Form card ---------- */
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: var(--hrms-surface-container-lowest);
+  box-shadow: var(--hrms-shadow-sm);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .formCard {
+    padding: 2rem;
+  }
+}
+
+.formCardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--hrms-surface-container);
+}
+
+.formCardTitle {
+  margin: 0;
+  font-family: var(--font-plus-jakarta), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+  color: var(--hrms-on-surface);
+}
+
+.formCardSubtitle {
+  margin: 0.125rem 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-on-surface-variant);
+}
+
+.mandatoryHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+  background: var(--hrms-surface-container);
+  color: var(--hrms-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+.mandatoryHint .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--hrms-secondary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.fieldsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--hrms-space-md);
+}
+
+@media (min-width: 768px) {
+  .fieldsRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--hrms-on-surface);
+}
+
+.required {
+  color: var(--hrms-secondary);
+}
+
+.quotaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--hrms-surface-container-high);
+  color: var(--hrms-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.selectWrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.select {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 2.5rem 0 0.875rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--hrms-surface-container-lowest);
+  color: var(--hrms-on-surface);
+  font-size: 14px;
+  line-height: 20px;
+  appearance: none;
+  cursor: pointer;
+  box-shadow: var(--hrms-shadow-input);
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+.select:focus {
+  outline: none;
+  background: var(--hrms-surface-container-low);
+}
+
+.selectChevron {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--hrms-outline);
+  font-size: 20px !important;
+}
+
+.dateWrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.dateWrap :global(.react-datepicker-wrapper) {
+  width: 100%;
+  display: block;
+}
+
+.dateWrap :global(.react-datepicker__input-container) {
+  width: 100%;
+  display: block;
+}
+
+.dateWrap :global(.react-datepicker__input-container input) {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 2.5rem 0 0.875rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--hrms-surface-container-lowest);
+  color: var(--hrms-on-surface);
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: var(--hrms-shadow-input);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.dateWrap :global(.react-datepicker__input-container input:focus) {
+  outline: none;
+  background: var(--hrms-surface-container-low);
+}
+
+.dateWrap :global(.react-datepicker__input-container input::placeholder) {
+  color: var(--hrms-outline);
+}
+
+.dateIcon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--hrms-outline);
+  font-size: 20px !important;
+  z-index: 1;
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.875rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--hrms-surface-container-lowest);
+  color: var(--hrms-on-surface);
+  font-size: 14px;
+  line-height: 20px;
+  font-family: inherit;
+  resize: none;
+  box-shadow: var(--hrms-shadow-input);
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+.textarea:focus {
+  outline: none;
+  background: var(--hrms-surface-container-low);
+}
+
+.textarea::placeholder {
+  color: var(--hrms-outline);
+}
+
+.charCount {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-on-surface-variant);
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-error);
+}
+
+/* ---------- Calc banner ---------- */
+.calcBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border-radius: 0.75rem;
+  background: var(--hrms-surface-container-low);
+  color: var(--hrms-on-surface);
+}
+
+.calcLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.calcIcon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--hrms-surface-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hrms-primary);
+  flex-shrink: 0;
+}
+
+.calcIcon .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.calcTitle {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--hrms-on-surface);
+}
+
+.calcMeta {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-on-surface-variant);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--hrms-space-md);
+  padding-top: 1rem;
+}
+
+/* ---------- Balances sidebar ---------- */
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: var(--hrms-surface-container-lowest);
+  box-shadow: var(--hrms-shadow-sm);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.balanceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+}
+
+.balanceTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.balanceTitleRow .material-symbols-outlined {
+  font-size: 22px;
+  color: var(--hrms-secondary);
+}
+
+.balanceTitle {
+  margin: 0;
+  font-family: var(--font-plus-jakarta), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+  color: var(--hrms-on-surface);
+}
+
+.yearBadge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--hrms-surface-container);
+  color: var(--hrms-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.meterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.meterLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hrms-on-surface);
+}
+
+.meterValue {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--hrms-on-surface-variant);
+}
+
+.meterValue strong {
+  color: var(--hrms-on-surface);
+  font-weight: 600;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 0.625rem;
+  border-radius: 9999px;
+  background: var(--hrms-surface-container);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--hrms-primary-container);
+  transition: width 0.3s ease;
+}
+
+.progressFillSick {
+  background: var(--hrms-secondary-container);
+}
+
+.progressFillCasual {
+  background: var(--hrms-on-tertiary-container);
+}
+
+.balanceFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hrms-surface-container);
+}
+
+.totalRemaining {
+  display: flex;
+  flex-direction: column;
+}
+
+.totalLabel {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  text-transform: uppercase;
+  color: var(--hrms-on-surface-variant);
+}
+
+.totalValue {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--hrms-on-surface);
+}
+
+.renewalNote {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--hrms-on-surface-variant);
+  text-align: right;
+}
+
+@media (max-width: 1023px) {
+  .page {
+    gap: var(--hrms-space-md);
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .btnGhost {
+    width: 100%;
+  }
+
+  .formActions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .btnCancel,
+  .btnSubmit {
+    width: 100%;
+  }
+}

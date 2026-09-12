@@ -44,10 +44,10 @@ export async function PATCH(req) {
     startTime.setHours(0, 0, 0, 0);
     let jobHour;
     if (employeeData.job_type === "fullTime") {
-      jobHour = "08:59:00";
+      jobHour = "09:00:00";
     }
     if (employeeData.job_type === "partTime") {
-      jobHour = "04:59:00";
+      jobHour = "04:00:00";
     }
     const { data: attendanceData, error: fetchError } = await supabase
       .from("attendance")
@@ -60,12 +60,20 @@ export async function PATCH(req) {
       const timeDifference = calculateTimeDifference(
         attendanceData?.checkin_time
       );
+      const parseHmsToSeconds = (value) => {
+        const [h = 0, m = 0, s = 0] = String(value || "0:0:0")
+          .split(":")
+          .map(Number);
+        return h * 3600 + m * 60 + s;
+      };
+      const workedSeconds = parseHmsToSeconds(timeDifference);
+      const requiredSeconds = parseHmsToSeconds(jobHour || "09:00:00");
       const { data: updateData, error: updateError } = await supabase
         .from("attendance")
         .update({
           checkout_time: currentTime,
           total_hour: timeDifference,
-          early_out: timeDifference > jobHour ? false : true,
+          early_out: workedSeconds < requiredSeconds,
         })
         .eq("id", attendanceData?.id);
       if (updateError) {

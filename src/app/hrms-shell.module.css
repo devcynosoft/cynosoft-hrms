@@ -1,0 +1,67 @@
+.app {
+  display: flex;
+  min-height: 100vh;
+  background: var(--hrms-surface);
+  color: var(--hrms-on-surface);
+  overflow-x: hidden;
+}
+
+.mainColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: var(--hrms-sidebar-width);
+  /* Must subtract sidebar width — width:100% + margin-left overflows and clips content */
+  width: calc(100% - var(--hrms-sidebar-width));
+  max-width: calc(100% - var(--hrms-sidebar-width));
+  box-sizing: border-box;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: calc(var(--hrms-header-height) + var(--hrms-space-xl))
+    var(--hrms-space-xl) var(--hrms-space-xl);
+  background: var(--hrms-surface);
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .content {
+    padding: calc(var(--hrms-header-height) + var(--hrms-space-lg))
+      var(--hrms-space-lg) var(--hrms-space-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .mainColumn {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+
+  .content {
+    /* mobileBar (3.25rem) + header (3.25rem) + spacing */
+    padding: calc(6.5rem + var(--hrms-space-md)) var(--hrms-space-md)
+      var(--hrms-space-md);
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: calc(6.5rem + 0.75rem) 0.75rem 0.75rem;
+  }
+}
+

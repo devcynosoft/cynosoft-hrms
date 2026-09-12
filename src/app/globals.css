@@ -64,7 +64,7 @@ a:active {
 .hrms-container {
   display: flex;
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 .hrms-content {
   flex: 1;
@@ -104,13 +104,13 @@ a:active {
 }
 
 .mainContainer {
-  width: calc(100% - 265px);
-  margin-left: 265px;
-  margin-top: 80px;
-  padding: 20px 50px;
-  padding-top: 0px;
-  overflow-y: auto;
-  height: calc(100vh - 80px);
+  width: 100%;
+  margin-left: 0;
+  margin-top: 0;
+  padding: 0;
+  overflow-y: visible;
+  height: auto;
+  max-width: 80rem;
 }
 .mainContainer::-webkit-scrollbar {
   display: none;
@@ -260,7 +260,7 @@ a:active {
   .hrms-container {
     display: flex;
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     flex-direction: column;
   }
   .pagination-num {
@@ -268,12 +268,11 @@ a:active {
   }
   .mainContainer {
     display: block;
-    left: 0px;
-    margin-left: 10px;
-    padding: 0px;
-    padding-right: 10px;
-    width: 97%;
-    margin-top: 0px;
+    left: 0;
+    margin-left: 0;
+    padding: 0;
+    width: 100%;
+    margin-top: 0;
     margin-bottom: 10px;
   }
   .search-field {

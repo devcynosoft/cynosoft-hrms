@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import styles from "./header.module.css";
@@ -6,12 +7,15 @@ import { supabase } from "@/utils/supabaseClient";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import moment from "moment";
 
 const HeaderComponent = ({ empData }) => {
   const router = useRouter();
   const dropdownRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [now, setNow] = useState(moment());
+  const [onDuty, setOnDuty] = useState(false);
   const userId = Cookies.get("user_id");
 
   const unreadCount = useMemo(
@@ -61,9 +65,40 @@ const HeaderComponent = ({ empData }) => {
     }
   };
 
+  const fetchOnDuty = async () => {
+    if (!empData?.supabase_user_id) return;
+    const startOfToday = moment().startOf("day").toDate();
+    const endOfToday = moment().endOf("day").toDate();
+    try {
+      const response = await fetch(
+        `/api/attendance/get-all?start=0&end=0&user_id=${empData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        const today = result?.data?.data?.[0];
+        setOnDuty(Boolean(today?.checkin_time && !today?.checkout_time));
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     if (userId) loadNotifications();
   }, [userId]);
+
+  useEffect(() => {
+    fetchOnDuty();
+  }, [empData?.supabase_user_id]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(moment()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -112,90 +147,127 @@ const HeaderComponent = ({ empData }) => {
   }, [isOpen]);
 
   return (
-    <div className={`d-flex justify-content-end ${styles.header}`}>
-      <div className={styles.notificationWrap} ref={dropdownRef}>
-        <button
-          type="button"
-          className={styles.notificationBtn}
-          onClick={() => setIsOpen((v) => !v)}
-          aria-label="Notifications"
-        >
-          <Image
-            src="/assets/icons/bell-black.svg"
-            alt="Notifications"
-            width={18}
-            height={18}
-            priority
+    <header className={styles.header}>
+      <div className={styles.left}>
+        {/* <Image
+          src="/assets/images/logo.svg"
+          alt="Cynosoft Logo"
+          width={120}
+          height={28}
+          className={styles.logo}
+          priority
+        /> */}
+        <h4 className={styles.title}>Cynosoft Workspace</h4>
+        {/* <div className={styles.breadcrumb}>
+          <span className={styles.breadcrumbStrong}>Cynosoft Workspace</span>
+          <span>/</span>
+          <span>Enterprise Operations</span>
+        </div>
+        <div className={styles.searchWrap}>
+          <span className={`material-symbols-outlined ${styles.searchIcon}`}>
+            search
+          </span>
+          <input
+            className={styles.searchInput}
+            placeholder="Search employees, attendance, leaves..."
+            type="text"
+            readOnly
           />
-          {unreadCount > 0 && (
-            <span className={styles.badge}>
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
-        </button>
+        </div> */}
+      </div> 
 
-        {isOpen && (
-          <div className={styles.dropdown}>
-            <div className={styles.dropdownHeader}>
-              <span className={styles.dropdownTitle}>Notifications</span>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  className={styles.markAll}
-                  onClick={markAllRead}
-                >
-                  Mark all read
-                </button>
+      <div className={styles.right}>
+        <div className={styles.clockPill}>
+          <span className={`material-symbols-outlined ${styles.clockIcon}`}>
+            calendar_today
+          </span>
+          <span>{now.format("ddd, MMM D • h:mm A")}</span>
+        </div>
+
+        <div className={styles.statusPill}>
+          <span
+            className={`${styles.statusDot} ${
+              onDuty ? "" : styles.statusDotOff
+            }`}
+          />
+          <span>{onDuty ? "On Duty" : "Off Duty"}</span>
+        </div>
+
+        <div className={styles.notificationWrap} ref={dropdownRef}>
+          <button
+            type="button"
+            className={styles.notificationBtn}
+            onClick={() => setIsOpen((v) => !v)}
+            aria-label="Notifications"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+              notifications
+            </span>
+            {unreadCount > 0 && <span className={styles.badge} />}
+          </button>
+
+          {isOpen && (
+            <div className={styles.dropdown}>
+              <div className={styles.dropdownHeader}>
+                <span className={styles.dropdownTitle}>Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    className={styles.markAll}
+                    onClick={markAllRead}
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+
+              {notifications?.length ? (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={`${styles.item} ${
+                      !n?.is_read ? styles.itemUnread : ""
+                    }`}
+                    onClick={() => handleNotificationClick(n)}
+                  >
+                    <div className={styles.itemMessage}>{n?.message}</div>
+                    <div className={styles.itemMeta}>
+                      {new Date(n?.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className={styles.emptyState}>No notifications yet.</div>
               )}
             </div>
+          )}
+        </div>
 
-            {notifications?.length ? (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`${styles.item} ${
-                    !n?.is_read ? styles.itemUnread : ""
-                  }`}
-                  onClick={() => handleNotificationClick(n)}
-                >
-                  <div className={styles.itemMessage}>{n?.message}</div>
-                  <div className={styles.itemMeta}>
-                    {new Date(n?.created_at).toLocaleString()}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className={styles.emptyState}>No notifications yet.</div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="d-none d-md-block">
-        <div className="d-flex align-items-center">
-          <span className="me-2">
-            {empData?.name ? empData?.name.split(" ")[0] : ""}
-          </span>
+        <div className={styles.avatar}>
           {empData?.pic ? (
             <Image
-              src={empData?.pic}
-              alt="Vercel Logo"
-              width={33}
-              height={33}
+              src={empData.pic}
+              alt="Profile"
+              width={32}
+              height={32}
+              style={{ borderRadius: "9999px", objectFit: "cover" }}
               priority
-              className="hrms-profileImage"
+            />
+          ) : empData?.name ? (
+            <NameBadge
+              name={empData.name}
+              fontSize={12}
+              height={32}
+              width={32}
             />
           ) : (
-            <NameBadge
-              name={empData?.name}
-              fontSize={15}
-              height={27}
-              width={27}
-            />
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+              person
+            </span>
           )}
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 

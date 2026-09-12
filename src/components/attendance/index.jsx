@@ -1,23 +1,30 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import DatePicker from "react-datepicker";
-import { Dropdown } from "react-bootstrap";
 import styles from "./attendance.module.css";
 import "react-datepicker/dist/react-datepicker.css";
-import Image from "next/image";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useEmployee } from "@/context/EmployeeContext";
-import DynamicTable from "../table";
-import useIsMobile from "@/utils/useIsMobile";
 import moment from "moment";
 import { generateAttendancePdf } from "@/utils/pdfGenerator";
 import ButtonLoader from "../ButtonLoader.jsx";
+import calculateTimeDifference from "@/utils/timeDifference";
+import {
+  formatDayLabel,
+  getAttendanceStatus,
+  isActiveSession,
+  parseTotalHoursToProgress,
+  computeMonthMetrics,
+  formatOvertimeLabel,
+  getRequiredHours,
+  isEarlyOutHours,
+} from "@/utils/attendanceDisplay";
 
 function AttendanceComponent() {
   const { employeeData } = useEmployee();
-  const isMobile = useIsMobile();
+  const exportRef = useRef(null);
   const [attendanceList, setAttendanceList] = useState([]);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -26,6 +33,16 @@ function AttendanceComponent() {
   const [recordsPerPage, setRecordsPerPage] = useState(5);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [elapsed, setElapsed] = useState("");
+  const [todaySession, setTodaySession] = useState(null);
+  const [monthMetrics, setMonthMetrics] = useState(() =>
+    computeMonthMetrics([])
+  );
+
+  const requiredHours = getRequiredHours(employeeData?.job_type);
+
+  const totalPages = Math.max(1, Math.ceil(totalRecord / recordsPerPage) || 1);
 
   const getEmployeeDetail = async () => {
     if (!employeeData?.supabase_user_id) return;
@@ -48,7 +65,7 @@ function AttendanceComponent() {
     );
     const result = await response.json();
     if (response.status === 200) {
-      const formattedData = result?.data?.data?.map((att, index) => ({
+      const formattedData = result?.data?.data?.map((att) => ({
         id: att?.id,
         date: att?.checkin_time
           ? moment(att?.checkin_time).format("YYYY-MM-DD")
@@ -60,16 +77,76 @@ function AttendanceComponent() {
           ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
           : "",
         hour: att?.total_hour,
+        rawCheckin: att?.checkin_time,
+        rawCheckout: att?.checkout_time,
+        earlyOut: att?.early_out === true || att?.early_out === "true",
       }));
       setIsLoading(false);
-      setAttendanceList(formattedData);
-      setTotalRecord(result?.data?.count);
+      setAttendanceList(formattedData || []);
+      setTotalRecord(result?.data?.count || 0);
+    } else {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchTodaySession = async () => {
+    if (!employeeData?.supabase_user_id) return;
+    const startOfToday = moment().startOf("day").toDate();
+    const endOfToday = moment().endOf("day").toDate();
+    try {
+      const response = await fetch(
+        `/api/attendance/get-all?start=0&end=0&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        setTodaySession(result?.data?.data?.[0] || null);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const fetchMonthMetrics = async () => {
+    if (!employeeData?.supabase_user_id) return;
+    const monthStart = moment().startOf("month").toDate();
+    const monthEnd = moment().endOf("month").toDate();
+    const startOfRange = new Date(monthStart);
+    startOfRange.setHours(0, 0, 0, 0);
+    const endOfRange = new Date(monthEnd);
+    endOfRange.setHours(23, 59, 59, 999);
+
+    try {
+      // No pagination range → API returns all month rows for this user
+      const response = await fetch(
+        `/api/attendance/get-all?user_id=${employeeData.supabase_user_id}&startOfToday=${startOfRange}&endOfToday=${endOfRange}&startDate=${monthStart}&endDate=${monthEnd}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        setMonthMetrics(
+          computeMonthMetrics(
+            result?.data?.data || [],
+            getRequiredHours(employeeData?.job_type)
+          )
+        );
+      }
+    } catch (e) {
+      // ignore
     }
   };
 
   useEffect(() => {
     if (employeeData) {
       getEmployeeDetail();
+      fetchTodaySession();
+      fetchMonthMetrics();
     }
   }, [currentPage, recordsPerPage, startDate, endDate, employeeData]);
 
@@ -86,18 +163,19 @@ function AttendanceComponent() {
           table: "attendance",
         },
         (payload) => {
-          // Only update if the change is related to the current user
           if (
             payload.new?.supabase_user_id === employeeData?.supabase_user_id
           ) {
             getEmployeeDetail();
+            fetchTodaySession();
+            fetchMonthMetrics();
           }
         }
       )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe(); // Cleanup on unmount
+      subscription.unsubscribe();
     };
   }, [employeeData?.supabase_user_id]);
 
@@ -120,29 +198,47 @@ function AttendanceComponent() {
     }
   }, []);
 
-  const configData = [
-    {
-      label: "Date",
-      key: "date",
-    },
-    {
-      label: "Check In",
-      key: "checkIn",
-    },
-    {
-      label: "Check Out",
-      key: "checkOut",
-    },
-    {
-      label: "Total Hour",
-      key: "hour",
-    },
-  ];
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!exportOpen) return;
+      if (exportRef.current && !exportRef.current.contains(e.target)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportOpen]);
+
+  const activeToday =
+    todaySession?.checkin_time && !todaySession?.checkout_time;
+
+  useEffect(() => {
+    if (!activeToday || !todaySession?.checkin_time) {
+      setElapsed("");
+      return;
+    }
+    const tick = () => {
+      const diff = calculateTimeDifference(todaySession.checkin_time);
+      if (diff && diff !== "Invalid Date") {
+        const [h, m, s] = diff.split(":");
+        setElapsed(`${h}h ${m}m ${s}s`);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeToday, todaySession?.checkin_time]);
+
+  const todayCheckInLabel = useMemo(() => {
+    if (!todaySession?.checkin_time) return null;
+    return moment.utc(todaySession.checkin_time).local().format("hh:mm A");
+  }, [todaySession?.checkin_time]);
 
   const filteredPdfHandler = async () => {
     try {
       if (startDate || endDate) {
         setPdfLoading(true);
+        setExportOpen(false);
         const startOfToday = new Date(startDate);
         startOfToday.setHours(0, 0, 0, 0);
 
@@ -175,6 +271,7 @@ function AttendanceComponent() {
         }
         setPdfLoading(false);
       } else {
+        setExportOpen(false);
         toast.error(`Please select filters`, {
           position: "bottom-right",
           autoClose: 5000,
@@ -201,71 +298,675 @@ function AttendanceComponent() {
     }
   };
 
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = new Set([1, totalPages, currentPage]);
+    if (currentPage > 1) pages.add(currentPage - 1);
+    if (currentPage < totalPages) pages.add(currentPage + 1);
+    return Array.from(pages).sort((a, b) => a - b);
+  }, [totalPages, currentPage]);
+
+  const renderElapsedForRow = (row) => {
+    if (!isActiveSession(row) || !row.rawCheckin) return row.hour || "—";
+    const diff = calculateTimeDifference(row.rawCheckin);
+    return diff && diff !== "Invalid Date" ? diff : row.hour || "—";
+  };
+
   return (
-    <div className="mainContainer">
-      <div className={styles.listForms}>
-        <span
-          className="d-none d-sm-block"
-          style={{ fontSize: "30px", fontWeight: "700" }}
-        >
-          My Attendance
-        </span>
-        <div className="d-flex justify-content-between align-items-sm-start mt-4 align-items-md-center mb-3 flex-md-row flex-column">
-          <div className="d-flex">
-            <div className={styles.datePicker}>
-              <Image
-                src="/assets/images/Vector.png"
-                alt="Profile pic"
-                width={16}
-                height={16}
-                className="hrms-calendar-icon"
-                priority
-              />
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <div className={styles.eyebrow}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16, color: "var(--hrms-on-tertiary-container)" }}
+            >
+              schedule
+            </span>
+            <span>Time & Attendance</span>
+            <span>•</span>
+            <span className={styles.eyebrowAccent}>
+              Fiscal Year {moment().year()}
+            </span>
+          </div>
+          <h1 className={styles.title}>My Attendance</h1>
+          <p className={styles.subtitle}>
+            Monitor your daily punch records, work hours, and monthly
+            timesheets.
+          </p>
+        </div>
+
+        <div className={styles.headerActions}>
+          {activeToday && todayCheckInLabel && (
+            <div className={styles.shiftPill}>
+              <div className={styles.liveDotWrap}>
+                <span className={styles.liveDot} />
+                <span className={styles.liveDotPing} />
+              </div>
+              <div>
+                <div className={styles.shiftLabel}>Today&apos;s Shift</div>
+                <div className={styles.shiftValue}>
+                  {todayCheckInLabel} • Active
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.exportWrap} ref={exportRef}>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? (
+                <ButtonLoader />
+              ) : (
+                <>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 18,
+                      color: "var(--hrms-secondary-container)",
+                    }}
+                  >
+                    file_download
+                  </span>
+                  <span>Download PDF</span>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16 }}
+                  >
+                    expand_more
+                  </span>
+                </>
+              )}
+            </button>
+            {exportOpen && (
+              <div className={styles.exportMenu}>
+                <button
+                  type="button"
+                  className={styles.exportItem}
+                  onClick={filteredPdfHandler}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 18, color: "var(--hrms-error)" }}
+                  >
+                    picture_as_pdf
+                  </span>
+                  Export as PDF
+                </button>
+                <button type="button" className={styles.exportItem}>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 18,
+                      color: "var(--hrms-on-tertiary-container)",
+                    }}
+                  >
+                    table_view
+                  </span>
+                  Export to Excel (.xlsx)
+                </button>
+                <button type="button" className={styles.exportItem}>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 18,
+                      color: "var(--hrms-on-surface-variant)",
+                    }}
+                  >
+                    description
+                  </span>
+                  Comma Separated (.csv)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricTop}>
+            <div className={styles.metricTopText}>
+              <div className={styles.metricLabel}>Present Days</div>
+              <div className={styles.metricValueRow}>
+                <span className={styles.metricValue}>
+                  {monthMetrics.presentDays}
+                </span>
+                <span className={styles.metricSuffix}>
+                  / {monthMetrics.weekdaysSoFar} Days
+                </span>
+              </div>
+            </div>
+            <div className={styles.metricIcon}>
+              <span className="material-symbols-outlined">calendar_month</span>
+            </div>
+          </div>
+          <div className={styles.metricFooter}>
+            <div className={styles.metricTrend}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                trending_up
+              </span>
+              {monthMetrics.presentPct}% of weekdays so far
+            </div>
+            <span className={styles.metricMeta}>{monthMetrics.monthLabel}</span>
+          </div>
+          <div className={styles.progressTrack}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${monthMetrics.presentPct}%` }}
+            />
+          </div>
+        </div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricTop}>
+            <div className={styles.metricTopText}>
+              <div className={styles.metricLabel}>Avg. Working Hours</div>
+              <div className={styles.metricValueRow}>
+                <span className={styles.metricValue}>
+                  {monthMetrics.completedCount > 0 ? (
+                    <>
+                      {monthMetrics.avgHours}
+                      <span className={styles.metricSuffix}>h</span>{" "}
+                      {monthMetrics.avgMinutes}
+                      <span className={styles.metricSuffix}>m</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+              </div>
+            </div>
+            <div
+              className={styles.metricIcon}
+              style={{ color: "var(--hrms-secondary)" }}
+            >
+              <span className="material-symbols-outlined">timer</span>
+            </div>
+          </div>
+          <div className={styles.metricFooter}>
+            <div className={styles.metricTrend}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                arrow_upward
+              </span>
+              From {monthMetrics.completedCount} completed day
+              {monthMetrics.completedCount === 1 ? "" : "s"}
+            </div>
+            <span className={styles.metricMeta}>
+              Target: {requiredHours}h
+            </span>
+          </div>
+          <div className={styles.progressTrack}>
+            <div
+              className={`${styles.progressFill} ${styles.progressFillOrange}`}
+              style={{ width: `${monthMetrics.avgVsTargetPct || 0}%` }}
+            />
+          </div>
+        </div>
+
+        <div className={styles.metricCard}>
+          <div className={styles.metricTop}>
+            <div className={styles.metricTopText}>
+              <div className={styles.metricLabel}>Full Day Rate</div>
+              <div className={styles.metricValueRow}>
+                <span className={styles.metricValue}>
+                  {monthMetrics.completedCount > 0
+                    ? `${monthMetrics.fullDayPct}%`
+                    : "—"}
+                </span>
+                <span
+                  className={styles.metricSuffix}
+                  style={{ color: "var(--hrms-on-tertiary-container)" }}
+                >
+                  {monthMetrics.completedCount > 0
+                    ? `${monthMetrics.fullDayCount}/${monthMetrics.completedCount}`
+                    : "No checkouts"}
+                </span>
+              </div>
+            </div>
+            <div
+              className={styles.metricIcon}
+              style={{ color: "var(--hrms-tertiary-container)" }}
+            >
+              <span className="material-symbols-outlined">verified_user</span>
+            </div>
+          </div>
+          <div className={styles.metricFooter}>
+            <div
+              className={styles.metricTrend}
+              style={{ color: "var(--hrms-on-surface-variant)" }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                info
+              </span>
+              Days without early out
+            </div>
+            <span className={styles.metricMeta}>
+              {monthMetrics.totalHours}h {monthMetrics.totalMinutes}m total
+            </span>
+          </div>
+          <div className={styles.progressTrack}>
+            <div
+              className={`${styles.progressFill} ${styles.progressFillTeal}`}
+              style={{ width: `${monthMetrics.fullDayPct || 0}%` }}
+            />
+          </div>
+        </div>
+
+        <div className={`${styles.metricCard} ${styles.metricCardHero}`}>
+          <div className={styles.heroBlur} />
+          <div className={styles.metricTop} style={{ position: "relative", zIndex: 1 }}>
+            <div className={styles.metricTopText}>
+              <div className={styles.metricLabel}>Live Punch</div>
+              <div className={styles.metricValueRow}>
+                <span className={styles.metricValue}>
+                  {activeToday ? "Checked In" : "Not Checked In"}
+                </span>
+              </div>
+            </div>
+            {activeToday && (
+              <span className={styles.liveDotWrap} style={{ marginTop: 4 }}>
+                <span className={styles.liveDotPing} />
+                <span
+                  className={styles.liveDot}
+                  style={{ background: "var(--hrms-tertiary-fixed)" }}
+                />
+              </span>
+            )}
+          </div>
+          <div style={{ marginTop: "1rem", position: "relative", zIndex: 1 }}>
+            <div className={styles.heroRow}>
+              <span className={styles.heroRowLabel}>In Time:</span>
+              <span className={styles.heroValue}>
+                {activeToday && todaySession?.checkin_time
+                  ? moment
+                      .utc(todaySession.checkin_time)
+                      .local()
+                      .format("hh:mm:ss A")
+                  : "—"}
+              </span>
+            </div>
+            <div className={styles.heroRow}>
+              <span className={styles.heroRowLabel}>Time Elapsed:</span>
+              <span className={styles.heroElapsed}>{elapsed || "—"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.filtersCard}>
+        <div className={styles.dateFilters}>
+          <div className={styles.datePill}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 18, color: "var(--hrms-tertiary-fixed)" }}
+            >
+              calendar_today
+            </span>
+            <div>
+              <div className={styles.datePillLabel}>Start Date</div>
               <DatePicker
                 selected={startDate}
-                onChange={(date) => setStartDate(date)}
-                placeholderText="Start Date"
-              />
-            </div>
-            <div className={`${styles.datePicker} ${styles.marginStart}`}>
-              <Image
-                src="/assets/images/Vector.png"
-                alt="Profile pic"
-                width={16}
-                height={16}
-                className="hrms-calendar-icon"
-                priority
-              />
-              <DatePicker
-                selected={endDate}
-                onChange={(date) => setEndDate(date)}
-                placeholderText="End Date"
+                onChange={(date) => {
+                  setStartDate(date);
+                  setCurrentPage(1);
+                }}
+                placeholderText="Select"
+                dateFormat="yyyy-MM-dd"
               />
             </div>
           </div>
-          <Dropdown className="mt-3 mt-md-0">
-            <Dropdown.Toggle
-              onClick={filteredPdfHandler}
-              variant="success"
-              id="dropdown-basic"
-              disabled={pdfLoading}
-              style={{ width: "140px" }}
+          <span className={styles.toLabel}>to</span>
+          <div className={styles.datePill}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 18, color: "var(--hrms-tertiary-fixed)" }}
             >
-              {pdfLoading ? <ButtonLoader /> : "Download PDF"}
-            </Dropdown.Toggle>
-          </Dropdown>
+              event
+            </span>
+            <div>
+              <div className={styles.datePillLabel}>End Date</div>
+              <DatePicker
+                selected={endDate}
+                onChange={(date) => {
+                  setEndDate(date);
+                  setCurrentPage(1);
+                }}
+                placeholderText="Select"
+                dateFormat="yyyy-MM-dd"
+              />
+            </div>
+          </div>
+          {/* <button type="button" className={styles.filterIconBtn} aria-label="Filter">
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+              filter_alt
+            </span>
+          </button> */}
         </div>
-        <DynamicTable
-          config={configData}
-          data={attendanceList}
-          totalRecord={totalRecord}
-          currentPage={currentPage}
-          recordsPerPage={recordsPerPage}
-          setCurrentPage={setCurrentPage}
-          setRecordsPerPage={setRecordsPerPage}
-          tableHeight={isMobile ? "350" : "310"}
-          isLoading={isLoading}
-        />
+
+        {/* <div className={styles.chips}>
+          <button type="button" className={`${styles.chip} ${styles.chipActive}`}>
+            All ({totalRecord})
+          </button>
+          <button type="button" className={styles.chip}>
+            On Time
+          </button>
+          <button type="button" className={styles.chip}>
+            Late Arrival
+          </button>
+          <button type="button" className={styles.chip}>
+            Half Day
+          </button>
+          <button type="button" className={styles.chip}>
+            Absent
+          </button>
+        </div> */}
+      </div>
+
+      <div className={styles.tableCard}>
+        <div className={styles.tableHeaderBar}>
+          <div className={styles.tableHeaderLeft}>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 20, color: "var(--hrms-primary-container)" }}
+            >
+              view_list
+            </span>
+            <h2 className={styles.tableTitle}>Daily Punch Records</h2>
+          </div>
+          <span className={styles.tableHint}>
+            Showing latest synchronized entries
+          </span>
+        </div>
+
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Date & Day</th>
+                <th scope="col">Check In</th>
+                <th scope="col">Check Out</th>
+                <th scope="col">Total Working Hours</th>
+                <th scope="col">Status</th>
+                {/* <th scope="col">Actions</th> */}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyRow}>
+                    Data Loading...
+                  </td>
+                </tr>
+              ) : attendanceList?.length > 0 ? (
+                attendanceList.map((row) => {
+                  const active = isActiveSession(row);
+                  const earlyOut =
+                    !active && isEarlyOutHours(row.hour, requiredHours);
+                  const status = getAttendanceStatus({ ...row, earlyOut });
+                  const progress = active
+                    ? 20
+                    : parseTotalHoursToProgress(row.hour, requiredHours);
+                  const overtimeLabel =
+                    !active && !earlyOut
+                      ? formatOvertimeLabel(row.hour, requiredHours)
+                      : null;
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <div className={styles.dateCell}>
+                          <span
+                            className={`${styles.rowDot} ${
+                              active ? styles.rowDotActive : ""
+                            }`}
+                          />
+                          <div>
+                            <div className={styles.dateMain}>{row.date}</div>
+                            <div className={styles.dateSub}>
+                              {formatDayLabel(row.date)}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.timeCell}>
+                          <span
+                            className="material-symbols-outlined"
+                            style={{
+                              fontSize: 16,
+                              color: active
+                                ? "var(--hrms-on-tertiary-container)"
+                                : "var(--hrms-outline)",
+                            }}
+                          >
+                            login
+                          </span>
+                          <span style={{ fontWeight: active ? 600 : 400 }}>
+                            {row.checkIn || "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        {active ? (
+                          <span className={styles.inProgress}>In Progress</span>
+                        ) : (
+                          <div className={styles.timeCell}>
+                            <span
+                              className="material-symbols-outlined"
+                              style={{
+                                fontSize: 16,
+                                color: "var(--hrms-secondary)",
+                              }}
+                            >
+                              logout
+                            </span>
+                            <span>{row.checkOut || "—"}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className={styles.hoursCell}>
+                          <div className={styles.hoursTop}>
+                            <span
+                              style={{
+                                fontFamily: "ui-monospace, monospace",
+                                color: active
+                                  ? "var(--hrms-on-tertiary-container)"
+                                  : earlyOut
+                                    ? "var(--hrms-error)"
+                                    : "var(--hrms-on-surface)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {active
+                                ? renderElapsedForRow(row)
+                                : row.hour || "—"}
+                            </span>
+                            <span
+                              style={{
+                                color: active
+                                  ? "var(--hrms-on-surface-variant)"
+                                  : earlyOut
+                                    ? "var(--hrms-error)"
+                                    : overtimeLabel
+                                      ? "var(--hrms-on-tertiary-container)"
+                                      : "var(--hrms-on-surface-variant)",
+                                fontWeight: overtimeLabel ? 600 : undefined,
+                              }}
+                            >
+                              {active
+                                ? "In Office"
+                                : earlyOut
+                                  ? "Early out"
+                                  : overtimeLabel || ""}
+                            </span>
+                          </div>
+                          <div className={styles.progressTrack}>
+                            <div
+                              className={`${styles.progressFill} ${
+                                earlyOut && !active
+                                  ? styles.progressFillRed
+                                  : ""
+                              }`}
+                              style={{
+                                width: `${progress}%`,
+                                ...(active
+                                  ? {
+                                      background:
+                                        "var(--hrms-on-tertiary-container)",
+                                    }
+                                  : {}),
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`${styles.statusBadge} ${
+                            earlyOut && !active
+                              ? styles.statusBadgeEarly
+                              : ""
+                          }`}
+                        >
+                          <span
+                            className={`${styles.statusDot} ${
+                              earlyOut && !active
+                                ? styles.statusDotEarly
+                                : ""
+                            }`}
+                          />
+                          {status}
+                        </span>
+                      </td>
+                      {/* <td>
+                        <button
+                          type="button"
+                          className={styles.viewBtn}
+                          title="View details"
+                          aria-label="View details"
+                        >
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: 18 }}
+                          >
+                            visibility
+                          </span>
+                        </button>
+                      </td> */}
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className={styles.emptyRow}>
+                    No attendance records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.paginationBar}>
+          <div className={styles.paginationInfo}>
+            <span>Showing</span>
+            <select
+              className={styles.pageSelect}
+              value={recordsPerPage}
+              onChange={(e) => {
+                setRecordsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span>
+              records out of{" "}
+              <span className={styles.totalBold}>{totalRecord}</span>
+            </span>
+          </div>
+          <div className={styles.pageBtns}>
+            <button
+              type="button"
+              className={styles.pageBtn}
+              aria-label="Previous Page"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                chevron_left
+              </span>
+            </button>
+            {pageNumbers.map((num, idx) => {
+              const prev = pageNumbers[idx - 1];
+              const showEllipsis = prev && num - prev > 1;
+              return (
+                <React.Fragment key={num}>
+                  {showEllipsis && (
+                    <span className={styles.pageEllipsis}>…</span>
+                  )}
+                  <button
+                    type="button"
+                    className={`${styles.pageBtn} ${
+                      num === currentPage ? styles.pageBtnActive : ""
+                    }`}
+                    onClick={() => setCurrentPage(num)}
+                  >
+                    {num}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+            <button
+              type="button"
+              className={styles.pageBtn}
+              aria-label="Next Page"
+              disabled={currentPage >= totalPages}
+              onClick={() =>
+                setCurrentPage((p) => Math.min(totalPages, p + 1))
+              }
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                chevron_right
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.banner}>
+        <div className={styles.bannerLeft}>
+          <div className={styles.bannerIcon}>
+            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+              contact_support
+            </span>
+          </div>
+          <div>
+            <p className={styles.bannerTitle}>
+              Missed a punch or noticed a discrepancy?
+            </p>
+            <p className={styles.bannerText}>
+              Submit a timesheet adjustment request within 72 hours for manager
+              regularization.
+            </p>
+          </div>
+        </div>
+        <button type="button" className={styles.bannerBtn}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            edit_calendar
+          </span>
+          Request Regularization
+        </button>
       </div>
     </div>
   );

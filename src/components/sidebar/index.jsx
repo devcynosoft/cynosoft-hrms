@@ -2,38 +2,88 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./sidebar.module.css";
 import { supabase } from "@/utils/supabaseClient";
-import { Button, Spinner } from "react-bootstrap";
 import Image from "next/image";
-import Cookies from "js-cookie";
-import { useRouter, usePathname } from "next/navigation";
-import calculateTimeDifference from "@/utils/timeDifference";
+import { usePathname } from "next/navigation";
 import { toast } from "react-toastify";
 import Link from "next/link";
 import NameBadge from "../NameBadge";
 import { useEmployee } from "@/context/EmployeeContext";
-import { Trash2, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
+import moment from "moment";
+import ButtonLoader from "../ButtonLoader.jsx";
 
 const SidebarComponent = () => {
   const fileInputRef = useRef(null);
-  const router = useRouter();
+  const pathname = usePathname();
   const { logout, employeeData, setEmployeeData } = useEmployee();
-  // const { employeeData, setEmployeeData } = useEmployee();
 
-  const [isHide, setIsHide] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutLoading, setcheckoutLoading] = useState(false);
   const [signoutLoading, setSignoutLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [checkedInTime, setCheckedInTime] = useState(null);
+  const [punchStatus, setPunchStatus] = useState("none"); // none | checked_in | checked_out
 
   const handleUploadClick = () => {
-    fileInputRef.current.click(); // Trigger hidden file input
+    fileInputRef.current?.click();
   };
+
+  const isActive = (href) => {
+    if (!pathname || !href) return false;
+    if (href === "/hrms/dashboard") {
+      return pathname.includes("/dashboard");
+    }
+    return pathname.includes(href.replace(/\/$/, ""));
+  };
+
+  const fetchTodayCheckin = async () => {
+    if (!employeeData?.supabase_user_id) return;
+    const startOfToday = moment().startOf("day").toDate();
+    const endOfToday = moment().endOf("day").toDate();
+    try {
+      const response = await fetch(
+        `/api/attendance/get-all?start=0&end=0&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (response.status === 200) {
+        const today = result?.data?.data?.[0];
+        if (today?.checkin_time && !today?.checkout_time) {
+          setCheckedInTime(
+            moment.utc(today.checkin_time).local().format("hh:mm A")
+          );
+          setPunchStatus("checked_in");
+        } else if (today?.checkin_time && today?.checkout_time) {
+          setCheckedInTime(
+            moment.utc(today.checkin_time).local().format("hh:mm A")
+          );
+          setPunchStatus("checked_out");
+        } else {
+          setCheckedInTime(null);
+          setPunchStatus("none");
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (employeeData?.supabase_user_id) {
+      fetchTodayCheckin();
+    }
+  }, [employeeData?.supabase_user_id, isLoading, checkoutLoading]);
 
   const signoutHandler = async () => {
     setSignoutLoading(true);
     logout();
   };
+
   const checkinHandler = async () => {
     if (!employeeData) {
       logout();
@@ -42,9 +92,7 @@ const SidebarComponent = () => {
     setIsLoading(true);
     const response = await fetch("/api/checkin", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(employeeData),
     });
     const result = await response.json();
@@ -60,8 +108,8 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setIsLoading(false);
-      setIsHide(false);
-    } else if (response?.status === 201) {
+      setIsOpen(false);
+    } else if (response?.status === 201 || response?.status === 403) {
       toast.warn(result?.data, {
         position: "bottom-right",
         autoClose: 5000,
@@ -73,20 +121,7 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setIsLoading(false);
-      setIsHide(false);
-    } else if (response?.status === 403) {
-      toast.warn(result?.data, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setIsLoading(false);
-      setIsHide(false);
+      setIsOpen(false);
     } else {
       toast.error(result?.error, {
         position: "bottom-right",
@@ -99,7 +134,7 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setIsLoading(false);
-      setIsHide(false);
+      setIsOpen(false);
     }
   };
 
@@ -111,9 +146,7 @@ const SidebarComponent = () => {
     setcheckoutLoading(true);
     const response = await fetch("/api/checkout", {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(employeeData),
     });
     const result = await response.json();
@@ -129,8 +162,8 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setcheckoutLoading(false);
-      setIsHide(false);
-    } else if (response?.status === 201) {
+      setIsOpen(false);
+    } else if (response?.status === 201 || response?.status === 403) {
       toast.warn(result?.data, {
         position: "bottom-right",
         autoClose: 5000,
@@ -142,20 +175,7 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setcheckoutLoading(false);
-      setIsHide(false);
-    } else if (response?.status === 403) {
-      toast.warn(result?.data, {
-        position: "bottom-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-      setcheckoutLoading(false);
-      setIsHide(false);
+      setIsOpen(false);
     } else {
       toast.error(result?.error, {
         position: "bottom-right",
@@ -168,12 +188,10 @@ const SidebarComponent = () => {
         theme: "colored",
       });
       setcheckoutLoading(false);
-      setIsHide(false);
+      setIsOpen(false);
     }
   };
-  const hideHandler = () => {
-    setIsHide(true);
-  };
+
   const removeImageFromStorage = async (oldFileName) => {
     if (oldFileName) {
       const filePath = oldFileName.replace(
@@ -192,7 +210,6 @@ const SidebarComponent = () => {
 
       const fileExists = fileList.some((file) => file.name === decodedFilePath);
       if (!fileExists) {
-        console.log("File does not exist in the bucket:", decodedFilePath);
         return false;
       }
       const { error: deleteError } = await supabase.storage
@@ -202,10 +219,8 @@ const SidebarComponent = () => {
       if (deleteError) {
         console.log("Error deleting file:", deleteError);
         return false;
-      } else {
-        console.log("Old file deleted successfully");
-        return true;
       }
+      return true;
     }
   };
 
@@ -238,9 +253,7 @@ const SidebarComponent = () => {
         `/api/employee/upsert?empId=${employeeData?.id}&userId=${null}`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pic: null }),
         }
       );
@@ -261,6 +274,7 @@ const SidebarComponent = () => {
     }
     setDeleting(false);
   };
+
   const uploadImage = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -271,9 +285,7 @@ const SidebarComponent = () => {
         `/api/employee/upsert?empId=${employeeData?.id}&userId=${null}`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pic: newImageUrl }),
         }
       );
@@ -294,348 +306,326 @@ const SidebarComponent = () => {
       }
     }
   };
+
   const getHeading = () => {
-    const pathname = usePathname();
-    if (pathname?.includes("/dashboard/")) {
-      return "My Attendance";
-    } else if (pathname?.includes("/employee/edit/")) {
-      return "Profile";
-    } else if (pathname?.includes("/leave/list/")) {
-      return "Leave History";
-    } else if (pathname?.includes("/leave/create/")) {
-      return "Leave Form";
-    } else if (pathname?.includes("/employee/attendance/edit/")) {
+    if (pathname?.includes("/dashboard")) return "My Attendance";
+    if (pathname?.includes("/employee/edit/")) return "Profile";
+    if (pathname?.includes("/leave/list")) return "Leave History";
+    if (pathname?.includes("/leave/create")) return "Leave Form";
+    if (pathname?.includes("/employee/attendance/edit/"))
       return "Attendance Edit Form";
-    } else if (pathname?.includes("/employee/attendance/")) {
-      return "Employee Attendance";
-    } else {
-      return ""; // Default heading
-    }
+    if (pathname?.includes("/employee/attendance")) return "Employee Attendance";
+    return "HRMS";
   };
+
+  const closeDrawer = () => setIsOpen(false);
+
+  const profileHref = employeeData?.id
+    ? `/hrms/employee/edit/${employeeData.id}`
+    : "#";
+
   return (
     <>
-      <div
-        style={{ background: "#0C2D57" }}
-        className="d-flex align-items-center text-light d-block d-md-none"
-      >
-        <div className={styles.hamburgerIcon}>
-          <Image
-            onClick={hideHandler}
-            src="/assets/icons/hamburger-light.svg"
-            alt="Vercel Logo"
-            width={24}
-            height={24}
-            style={{ cursor: "pointer" }}
-            priority
-          />
-        </div>
-        <span style={{ fontSize: "20px", fontWeight: "700" }}>
-          {getHeading()}
-        </span>
+      <div className={styles.mobileBar}>
+        <button
+          type="button"
+          className={styles.hamburgerBtn}
+          onClick={() => setIsOpen(true)}
+          aria-label="Open menu"
+        >
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        <span className={styles.mobileTitle}>{getHeading()}</span>
       </div>
 
-      <div
-        className={`${styles.sidebarLayout} ${isHide ? `${styles.show}` : ""}`}
+      {isOpen && (
+        <div
+          className={styles.overlay}
+          onClick={closeDrawer}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ""}`}
       >
-        <div className={`p-2`}>
-          <div className={styles.crossBtn}>
-            <Image
-              onClick={() => setIsHide(false)}
-              src="/assets/icons/Cross.svg"
-              alt="Vercel Logo"
-              width={24}
-              height={24}
-              style={{ cursor: "pointer" }}
-              priority
-            />
+        <div className={styles.sidebarTop}>
+          <div className={styles.brandRow}>
+            <div className={styles.brandLeft}>
+              <Image
+                src="/assets/images/logo-white.svg"
+                alt="Cynosoft Logo"
+                width={140}
+                height={32}
+                className={styles.brandLogo}
+                priority
+              />
+            </div>
+            <span className={styles.hrmsBadge}>HRMS</span>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={closeDrawer}
+              aria-label="Close menu"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
-          <div
-            className={`d-flex justify-content-center mt-2 ${styles.sideLogo}`}
-          >
-            <Image
-              src="/assets/images/logo-white.svg"
-              alt="Vercel Logo"
-              width={177}
-              height={44}
-              priority
-            />
-          </div>
-        </div>
-        <div className="w-100">
-          <div className={`${styles.center}`}>
-            <div className={`position-relative ${styles.logoContainer}`}>
-              {employeeData?.pic ? (
-                <>
+
+          <div className={styles.profileCard}>
+            <div className={styles.profileRow}>
+              <div className={styles.avatarWrap}>
+                {employeeData?.pic ? (
                   <Image
-                    src={employeeData?.pic}
-                    alt="Profile pic"
-                    width={106}
-                    height={106}
+                    src={employeeData.pic}
+                    alt="Profile"
+                    width={40}
+                    height={40}
+                    className={styles.avatar}
                     priority
-                    className="hrms-profileImage"
                   />
-                  <div className="d-flex">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={uploadImage}
-                      className="d-none" // Hides default file input but still works
-                    />
-                    <Button className={styles.deleteBtn}>
-                      {loading ? (
-                        <Spinner animation="border" size="sm" />
-                      ) : (
-                        <div
-                          style={{
-                            background: "black",
-                            height: "30px",
-                            width: "30px",
-                            borderRadius: "5px",
-                            opacity: "0.5",
-                          }}
-                        >
-                          <Upload
-                            onClick={handleUploadClick}
-                            className="w-5 h-5"
-                          />
-                        </div>
-                      )}
-                      <div
-                        style={{
-                          background: "black",
-                          height: "30px",
-                          width: "30px",
-                          borderRadius: "5px",
-                          opacity: "0.5",
-                        }}
-                      >
-                        {deleting ? (
-                          <Spinner animation="border" size="sm" />
-                        ) : (
-                          <Trash2
-                            onClick={() => deleteImage(employeeData?.pic)}
-                            className="w-5 h-5"
-                          />
-                        )}
-                      </div>
-                    </Button>
+                ) : (
+                  <div className={styles.avatarFallback}>
+                    {employeeData?.name ? (
+                      <NameBadge
+                        name={employeeData.name}
+                        fontSize={14}
+                        height={40}
+                        width={40}
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined">person</span>
+                    )}
                   </div>
-                </>
-              ) : (
-                <div className={`position-relative ${styles.logoContainer}`}>
-                  <>
-                    <NameBadge
-                      name={employeeData?.name}
-                      fontSize={40}
-                      height={106}
-                      width={108}
-                    />
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={uploadImage}
-                      className="d-none"
-                    />
-                    <Button className={styles.deleteBtn}>
-                      {loading ? (
-                        <Spinner animation="border" size="sm" />
-                      ) : (
-                        <div
-                          style={{
-                            background: "black",
-                            height: "30px",
-                            width: "30px",
-                            borderRadius: "5px",
-                            opacity: "0.5",
-                          }}
-                        >
-                          <Upload
-                            onClick={handleUploadClick}
-                            className="w-5 h-5"
-                          />
-                        </div>
-                      )}
-                    </Button>
-                  </>
-                </div>
-              )}
+                )}
+                <span className={styles.onlineDot} />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={uploadImage}
+                  className={styles.hiddenInput}
+                />
+                <button
+                  type="button"
+                  className={styles.avatarUploadBtn}
+                  onClick={handleUploadClick}
+                  disabled={loading}
+                  aria-label="Upload photo"
+                >
+                  {loading ? <ButtonLoader /> : <Upload size={14} />}
+                </button>
+              </div>
+              <div className={styles.profileInfo}>
+                <span className={styles.profileName}>
+                  {employeeData?.name || "Employee"}
+                </span>
+                <span className={styles.profileRole}>
+                  {employeeData?.role || "Employee"}
+                </span>
+              </div>
             </div>
 
-            <div className={styles.profileName}>
-              <span>
-                {employeeData?.name
-                  ? employeeData?.name?.length > 25
-                    ? `${employeeData?.name?.substring(0, 25)} ...`
-                    : employeeData?.name
-                  : ""}
-              </span>
+            {/* {checkedInTime && (
+              <div className={styles.checkedIn}>
+                <span className={styles.pulseDot} />
+                Checked in: {checkedInTime}
+              </div>
+            )} */}
+
+            <div className={styles.punchGrid}>
+              <button
+                type="button"
+                className={`${styles.punchBtn} ${styles.checkInBtn}`}
+                onClick={checkinHandler}
+                disabled={
+                  isLoading ||
+                  !employeeData ||
+                  punchStatus === "checked_in" ||
+                  punchStatus === "checked_out"
+                }
+              >
+                {isLoading ? (
+                  <ButtonLoader />
+                ) : (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 14, color: "var(--hrms-tertiary-container)" }}
+                    >
+                      check_circle
+                    </span>
+                    Check In
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className={`${styles.punchBtn} ${styles.checkOutBtn}`}
+                onClick={checkoutHandler}
+                disabled={
+                  checkoutLoading ||
+                  !employeeData ||
+                  punchStatus !== "checked_in"
+                }
+              >
+                {checkoutLoading ? (
+                  <ButtonLoader />
+                ) : (
+                  <>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 14 }}
+                    >
+                      logout
+                    </span>
+                    Check Out
+                  </>
+                )}
+              </button>
             </div>
           </div>
-          <div
-            className={`${styles.checkInSection} d-flex justify-content-between`}
-          >
-            <Button
-              onClick={checkinHandler}
-              className={styles.bgWhite}
-              size="sm"
-              disabled={isLoading || !employeeData}
-            >
-              Check In
-            </Button>
-            <Button
-              onClick={checkoutHandler}
-              className={styles.bgWhite}
-              size="sm"
-              disabled={checkoutLoading || !employeeData}
-            >
-              Check Out
-            </Button>
-          </div>
-          <div className={styles.sidebarText}>
-            <Link
-              href={`/hrms/employee/edit/${employeeData?.id}`}
-              className={styles.sidebarLink}
-              onClick={() => {
-                setIsHide(false);
-              }}
-            >
-              <Image
-                src={"/assets/icons/profile.svg"}
-                alt="Profile pic"
-                className={styles.iconsSpace}
-                width={20}
-                height={20}
-                priority
-              />
-              <div>Profile</div>
-            </Link>
+
+          <nav className={styles.nav}>
             <Link
               href="/hrms/dashboard"
-              className={styles.sidebarLink}
-              onClick={() => setIsHide(false)}
+              className={`${styles.navLink} ${
+                isActive("/hrms/dashboard") ? styles.navLinkActive : ""
+              }`}
+              onClick={closeDrawer}
             >
-              <Image
-                src={"/assets/icons/Dashboard-icon.svg"}
-                alt="Profile pic"
-                className={styles.iconsSpace}
-                width={20}
-                height={20}
-                priority
-              />
-              <div>My Attendance</div>
+              <span className={`material-symbols-outlined ${styles.navIcon}`}>
+                schedule
+              </span>
+              My Attendance
+            </Link>
+            <Link
+              href={profileHref}
+              className={`${styles.navLink} ${
+                pathname?.includes("/employee/edit/") ? styles.navLinkActive : ""
+              }`}
+              onClick={closeDrawer}
+            >
+              <span className={`material-symbols-outlined ${styles.navIcon}`}>
+                badge
+              </span>
+              Profile
             </Link>
             <Link
               href="/hrms/employee/leave/list"
-              className={styles.sidebarLink}
-              onClick={() => setIsHide(false)}
+              className={`${styles.navLink} ${
+                pathname?.includes("/leave/list") ? styles.navLinkActive : ""
+              }`}
+              onClick={closeDrawer}
             >
-              <Image
-                src={"/assets/icons/Leave-icon.svg"}
-                alt="Profile pic"
-                className={styles.iconsSpace}
-                width={20}
-                height={20}
-                priority
-              />
-              <div>
-                {employeeData?.role === "admin" ? "Leaves" : "My Leaves"}
-              </div>
+              <span className={`material-symbols-outlined ${styles.navIcon}`}>
+                event_note
+              </span>
+              {employeeData?.role === "admin" ? "Leaves" : "Leaves Management"}
             </Link>
-            {employeeData?.role === "admin" ? (
-              <Link
-                href="/hrms/employee/attendance"
-                className={styles.sidebarLink}
-                onClick={() => setIsHide(false)}
-              >
-                <Image
-                  src={"/assets/icons/apply-leave.svg"}
-                  alt="Profile pic"
-                  className={styles.iconsSpace}
-                  width={20}
-                  height={20}
-                  priority
-                />
-                <div>Employee Attendance</div>
-              </Link>
-            ) : (
-              ""
-            )}
-            {employeeData?.role !== "admin" ? (
+            {employeeData?.role !== "admin" && (
               <Link
                 href="/hrms/employee/leave/create"
-                className={styles.sidebarLink}
-                onClick={() => setIsHide(false)}
+                className={`${styles.navLink} ${
+                  pathname?.includes("/leave/create")
+                    ? styles.navLinkActive
+                    : ""
+                }`}
+                onClick={closeDrawer}
               >
-                <Image
-                  src={"/assets/icons/apply-leave.svg"}
-                  alt="Profile pic"
-                  className={styles.iconsSpace}
-                  width={20}
-                  height={20}
-                  priority
-                />
-                <div>Apply for Leave</div>
+                <span className={`material-symbols-outlined ${styles.navIcon}`}>
+                  add_task
+                </span>
+                Apply for Leave
               </Link>
-            ) : (
-              ""
             )}
-            {employeeData?.role === "admin" ? (
-              <Link
-                href="/hrms/employee/create"
-                className={styles.sidebarLink}
-                onClick={() => setIsHide(false)}
-              >
-                <Image
-                  src={"/assets/icons/Add-employee.svg"}
-                  alt="Profile pic"
-                  className={styles.iconsSpace}
-                  width={20}
-                  height={20}
-                  priority
-                />
-
-                <div>Add Employee</div>
-              </Link>
-            ) : (
-              ""
+            {employeeData?.role === "admin" && (
+              <>
+                <Link
+                  href="/hrms/employee/attendance"
+                  className={`${styles.navLink} ${
+                    pathname?.includes("/employee/attendance") &&
+                    !pathname?.includes("/edit/")
+                      ? styles.navLinkActive
+                      : ""
+                  }`}
+                  onClick={closeDrawer}
+                >
+                  <span
+                    className={`material-symbols-outlined ${styles.navIcon}`}
+                  >
+                    groups
+                  </span>
+                  Employee Attendance
+                </Link>
+                <Link
+                  href="/hrms/employee/create"
+                  className={`${styles.navLink} ${
+                    pathname?.includes("/employee/create")
+                      ? styles.navLinkActive
+                      : ""
+                  }`}
+                  onClick={closeDrawer}
+                >
+                  <span
+                    className={`material-symbols-outlined ${styles.navIcon}`}
+                  >
+                    person_add
+                  </span>
+                  Add Employee
+                </Link>
+                <Link
+                  href="/hrms/employee/list"
+                  className={`${styles.navLink} ${
+                    pathname?.includes("/employee/list")
+                      ? styles.navLinkActive
+                      : ""
+                  }`}
+                  onClick={closeDrawer}
+                >
+                  <span
+                    className={`material-symbols-outlined ${styles.navIcon}`}
+                  >
+                    list_alt
+                  </span>
+                  Employee List
+                </Link>
+              </>
             )}
-
-            {employeeData?.role === "admin" ? (
-              <Link
-                href="/hrms/employee/list"
-                className={styles.sidebarLink}
-                onClick={() => setIsHide(false)}
-              >
-                <Image
-                  src={"/assets/icons/Group 1000001947.svg"}
-                  alt="Profile pic"
-                  className={styles.iconsSpace}
-                  width={20}
-                  height={20}
-                  priority
-                />
-
-                <div>Employee List</div>
-              </Link>
-            ) : (
-              ""
-            )}
-          </div>
-          <div className="d-flex justify-content-center">
-            <Button
-              onClick={signoutHandler}
-              className={styles.bgWhite}
-              style={{ width: "94px", height: "37px" }}
-              size="sm"
-              disabled={signoutLoading}
-            >
-              Log Out
-            </Button>
-          </div>
+          </nav>
         </div>
-      </div>
+
+        <div className={styles.sidebarBottom}>
+          <a
+            href="#help"
+            className={styles.navLink}
+            onClick={(e) => e.preventDefault()}
+          >
+            <span className={`material-symbols-outlined ${styles.navIcon}`}>
+              support
+            </span>
+            Help & Support
+          </a>
+          <button
+            type="button"
+            className={`${styles.navLink} ${styles.logoutLink}`}
+            onClick={signoutHandler}
+            disabled={signoutLoading}
+            style={{
+              background: "transparent",
+              border: "none",
+              width: "100%",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <span className={`material-symbols-outlined ${styles.navIcon}`}>
+              power_settings_new
+            </span>
+            {signoutLoading ? "Logging out..." : "Log Out"}
+          </button>
+        </div>
+      </aside>
     </>
   );
 };

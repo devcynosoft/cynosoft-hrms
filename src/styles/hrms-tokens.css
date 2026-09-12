@@ -1,0 +1,79 @@
+:root {
+  --hrms-on-primary: #ffffff;
+  --hrms-surface-container-highest: #d3e4fe;
+  --hrms-primary-container: #002046;
+  --hrms-on-secondary: #ffffff;
+  --hrms-on-surface-variant: #44474e;
+  --hrms-on-surface: #0b1c30;
+  --hrms-error: #ba1a1a;
+  --hrms-on-background: #0b1c30;
+  --hrms-inverse-on-surface: #eaf1ff;
+  --hrms-on-secondary-fixed: #3a0a00;
+  --hrms-surface-container-high: #dce9ff;
+  --hrms-surface-dim: #cbdbf5;
+  --hrms-secondary-fixed-dim: #ffb59f;
+  --hrms-on-primary-fixed-variant: #2e476f;
+  --hrms-secondary-container: #fe6431;
+  --hrms-on-primary-container: #7089b4;
+  --hrms-primary-fixed-dim: #aec7f6;
+  --hrms-surface-container: #e5eeff;
+  --hrms-surface-bright: #f8f9ff;
+  --hrms-on-primary-fixed: #001b3d;
+  --hrms-tertiary-fixed: #89f5e7;
+  --hrms-outline-variant: #c4c6cf;
+  --hrms-on-tertiary-container: #19988c;
+  --hrms-background: #f8f9ff;
+  --hrms-on-error-container: #93000a;
+  --hrms-primary-fixed: #d6e3ff;
+  --hrms-outline: #74777f;
+  --hrms-error-container: #ffdad6;
+  --hrms-secondary: #ae3100;
+  --hrms-on-tertiary-fixed-variant: #005049;
+  --hrms-on-secondary-container: #5b1500;
+  --hrms-surface-tint: #465f88;
+  --hrms-tertiary: #000c0a;
+  --hrms-inverse-surface: #213145;
+  --hrms-tertiary-container: #002622;
+  --hrms-surface-container-low: #eff4ff;
+  --hrms-primary: #00091b;
+  --hrms-inverse-primary: #aec7f6;
+  --hrms-secondary-fixed: #ffdbd0;
+  --hrms-surface: #f8f9ff;
+  --hrms-surface-container-lowest: #ffffff;
+  --hrms-on-secondary-fixed-variant: #852400;
+  --hrms-on-tertiary: #ffffff;
+  --hrms-on-tertiary-fixed: #00201d;
+  --hrms-surface-variant: #d3e4fe;
+  --hrms-on-error: #ffffff;
+  --hrms-tertiary-fixed-dim: #6bd8cb;
+
+  --hrms-space-xs: 0.25rem;
+  --hrms-space-sm: 0.5rem;
+  --hrms-space-md: 1rem;
+  --hrms-space-lg: 1.5rem;
+  --hrms-space-xl: 2.5rem;
+  --hrms-gutter: 1.5rem;
+  --hrms-margin: 2rem;
+
+  --hrms-sidebar-width: 18rem;
+  --hrms-header-height: 4rem;
+
+  --hrms-shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.04);
+  --hrms-shadow-input: 0 1px 3px rgba(0, 32, 70, 0.04);
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
