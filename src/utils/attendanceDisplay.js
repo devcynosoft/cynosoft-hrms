@@ -54,7 +54,9 @@ export const isEarlyOutHours = (hourStr, requiredHours = 9) => {
 };
 
 export const parseTotalHoursToProgress = (hourStr, requiredHours = 9) => {
-  if (!hourStr || typeof hourStr !== "string") return 20;
+  if (!hourStr || typeof hourStr !== "string" || hourStr === "Invalid Date") {
+    return 0;
+  }
   const totalSeconds = parseHourToSeconds(hourStr);
   if (totalSeconds <= 0) return 0;
   const target = Math.max(1, requiredHours) * 3600;

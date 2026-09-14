@@ -926,7 +926,12 @@ function AttendanceComponent() {
                     !active && isEarlyOutHours(row.hour, requiredHours);
                   const status = getAttendanceStatus({ ...row, earlyOut });
                   const progress = active
-                    ? 20
+                    ? parseTotalHoursToProgress(
+                        row.rawCheckin
+                          ? calculateTimeDifference(row.rawCheckin)
+                          : null,
+                        requiredHours
+                      )
                     : parseTotalHoursToProgress(row.hour, requiredHours);
                   const overtimeLabel =
                     !active && !earlyOut
