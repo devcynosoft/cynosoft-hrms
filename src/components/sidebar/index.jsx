@@ -11,11 +11,14 @@ import { useEmployee } from "@/context/EmployeeContext";
 import { Upload } from "lucide-react";
 import moment from "moment";
 import ButtonLoader from "../ButtonLoader.jsx";
+import UserActions from "../header/UserActions";
+import useIsMobile from "@/utils/useIsMobile";
 
 const SidebarComponent = () => {
   const fileInputRef = useRef(null);
   const pathname = usePathname();
   const { logout, employeeData, setEmployeeData } = useEmployee();
+  const isMobile = useIsMobile();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -336,6 +339,9 @@ const SidebarComponent = () => {
           <span className="material-symbols-outlined">menu</span>
         </button>
         <span className={styles.mobileTitle}>{getHeading()}</span>
+        {isMobile ? (
+          <UserActions empData={employeeData} variant="mobile" />
+        ) : null}
       </div>
 
       {isOpen && (

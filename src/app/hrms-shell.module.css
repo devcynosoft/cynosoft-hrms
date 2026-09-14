@@ -52,8 +52,8 @@
   }
 
   .content {
-    /* mobileBar (3.25rem) + header (3.25rem) + spacing */
-    padding: calc(6.5rem + var(--hrms-space-md)) var(--hrms-space-md)
+    /* mobileBar only (3.25rem) — page header is hidden on mobile */
+    padding: calc(3.25rem + var(--hrms-space-md)) var(--hrms-space-md)
       var(--hrms-space-md);
     overflow-x: hidden;
   }
@@ -61,7 +61,7 @@
 
 @media (max-width: 480px) {
   .content {
-    padding: calc(6.5rem + 0.75rem) 0.75rem 0.75rem;
+    padding: calc(3.25rem + 0.75rem) 0.75rem 0.75rem;
   }
 }
 

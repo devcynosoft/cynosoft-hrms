@@ -23,7 +23,7 @@ import {
 } from "@/utils/attendanceDisplay";
 
 function AttendanceComponent() {
-  const { employeeData } = useEmployee();
+  const { employeeData, logout } = useEmployee();
   const exportRef = useRef(null);
   const [attendanceList, setAttendanceList] = useState([]);
   const [startDate, setStartDate] = useState(null);
@@ -36,6 +36,8 @@ function AttendanceComponent() {
   const [exportOpen, setExportOpen] = useState(false);
   const [elapsed, setElapsed] = useState("");
   const [todaySession, setTodaySession] = useState(null);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [monthMetrics, setMonthMetrics] = useState(() =>
     computeMonthMetrics([])
   );
@@ -212,6 +214,16 @@ function AttendanceComponent() {
   const activeToday =
     todaySession?.checkin_time && !todaySession?.checkout_time;
 
+  const punchStatus = useMemo(() => {
+    if (todaySession?.checkin_time && !todaySession?.checkout_time) {
+      return "checked_in";
+    }
+    if (todaySession?.checkin_time && todaySession?.checkout_time) {
+      return "checked_out";
+    }
+    return "none";
+  }, [todaySession?.checkin_time, todaySession?.checkout_time]);
+
   useEffect(() => {
     if (!activeToday || !todaySession?.checkin_time) {
       setElapsed("");
@@ -233,6 +245,116 @@ function AttendanceComponent() {
     if (!todaySession?.checkin_time) return null;
     return moment.utc(todaySession.checkin_time).local().format("hh:mm A");
   }, [todaySession?.checkin_time]);
+
+  const refreshAfterPunch = async () => {
+    await Promise.all([fetchTodaySession(), getEmployeeDetail(), fetchMonthMetrics()]);
+  };
+
+  const checkinHandler = async () => {
+    if (!employeeData) {
+      logout();
+      return;
+    }
+    setCheckinLoading(true);
+    try {
+      const response = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(employeeData),
+      });
+      const result = await response.json();
+      if (response?.status === 200) {
+        toast.success(result?.data, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+        await refreshAfterPunch();
+      } else if (response?.status === 201 || response?.status === 403) {
+        toast.warn(result?.data, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      } else {
+        toast.error(result?.error, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      }
+    } finally {
+      setCheckinLoading(false);
+    }
+  };
+
+  const checkoutHandler = async () => {
+    if (!employeeData) {
+      logout();
+      return;
+    }
+    setCheckoutLoading(true);
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(employeeData),
+      });
+      const result = await response.json();
+      if (response?.status === 200) {
+        toast.success(result?.data, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+        await refreshAfterPunch();
+      } else if (response?.status === 201 || response?.status === 403) {
+        toast.warn(result?.data, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      } else {
+        toast.error(result?.error, {
+          position: "bottom-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+      }
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   const filteredPdfHandler = async () => {
     try {
@@ -316,6 +438,99 @@ function AttendanceComponent() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.mobilePunch}>
+        <div className={styles.mobilePunchTop}>
+          <div className={styles.mobilePunchInfo}>
+            <span className={styles.mobilePunchLabel}>Today&apos;s punch</span>
+            <span className={styles.mobilePunchStatus}>
+              {punchStatus === "checked_in" && todayCheckInLabel
+                ? `Checked in at ${todayCheckInLabel}`
+                : punchStatus === "checked_out"
+                  ? "Checked out for today"
+                  : "Not checked in yet"}
+            </span>
+          </div>
+          {(punchStatus === "checked_in" || punchStatus === "checked_out") && (
+            <div className={styles.mobilePunchElapsed}>
+              {punchStatus === "checked_in" ? (
+                <>
+                  <span className={styles.liveDotWrap}>
+                    <span className={styles.liveDot} />
+                    <span className={styles.liveDotPing} />
+                  </span>
+                  <div>
+                    <span className={styles.mobilePunchElapsedLabel}>
+                      Elapsed
+                    </span>
+                    <span className={styles.mobilePunchElapsedValue}>
+                      {elapsed || "—"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span className={styles.mobilePunchElapsedLabel}>
+                    Total hours
+                  </span>
+                  <span className={styles.mobilePunchElapsedValue}>
+                    {todaySession?.total_hour || "—"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className={styles.mobilePunchGrid}>
+          <button
+            type="button"
+            className={`${styles.punchBtn} ${styles.checkInBtn}`}
+            onClick={checkinHandler}
+            disabled={
+              checkinLoading ||
+              !employeeData ||
+              punchStatus === "checked_in" ||
+              punchStatus === "checked_out"
+            }
+          >
+            {checkinLoading ? (
+              <ButtonLoader />
+            ) : (
+              <>
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: 16,
+                    color: "var(--hrms-tertiary-container)",
+                  }}
+                >
+                  check_circle
+                </span>
+                Check In
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`${styles.punchBtn} ${styles.checkOutBtn}`}
+            onClick={checkoutHandler}
+            disabled={
+              checkoutLoading || !employeeData || punchStatus !== "checked_in"
+            }
+          >
+            {checkoutLoading ? (
+              <ButtonLoader />
+            ) : (
+              <>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  logout
+                </span>
+                Check Out
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.pageHeader}>
         <div>
           <div className={styles.eyebrow}>
