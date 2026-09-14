@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import styles from "./attendanceDetail.module.css";
-import { Button } from "react-bootstrap";
+import styles from "./attendanceEdit.module.css";
 import { supabase } from "@/utils/supabaseClient";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
@@ -14,12 +13,36 @@ import DatePicker from "react-datepicker";
 import Image from "next/image";
 import ButtonLoader from "../ButtonLoader.jsx";
 
+const selectStyles = {
+  container: (base) => ({
+    ...base,
+    width: "100%",
+  }),
+  control: (base) => ({
+    ...base,
+    width: "100%",
+    minHeight: "2.75rem",
+    border: "none",
+    borderRadius: "0.5rem",
+    boxShadow: "0 1px 3px rgba(0, 32, 70, 0.04)",
+    backgroundColor: "#eff4ff",
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 50,
+  }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 120,
+  }),
+};
+
 const AttendanceEditComponent = ({ attendId }) => {
   const {
     register,
     handleSubmit,
     control,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     reset,
     getValues,
     setValue,
@@ -220,201 +243,229 @@ const AttendanceEditComponent = ({ attendId }) => {
     }
   };
 
+  const pageTitle = attendId ? "Edit Attendance" : "Add Attendance";
+  const formTitle = attendId
+    ? "Attendance Edit Form"
+    : "Attendance Add Form";
+
   return (
-    <div className="mainContainer">
-      <div className={`${styles.formContainer} mt-4 mt-md-0`}>
-        <div className={`${styles.title} d-none d-md-block mb-3`}>
-          <span>
-            {attendId ? "Attendance Edit Form" : "Attendance Add Form"}
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <div className={styles.breadcrumb}>
+            <button
+              type="button"
+              className={styles.breadcrumbLink}
+              onClick={() => router.push("/hrms/employee/attendance")}
+            >
+              Attendance
+            </button>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              chevron_right
+            </span>
+            <span className={styles.breadcrumbCurrent}>
+              {attendId ? "Edit" : "Create"}
+            </span>
+          </div>
+          <h1 className={styles.title}>{pageTitle}</h1>
+          <p className={styles.subtitle}>
+            {attendId
+              ? "Update check-in and check-out times for this record."
+              : "Create a new attendance entry for an employee."}
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.formCard}>
+
+
+        <div className={styles.formCardHeader}>
+          <div>
+            <h2 className={styles.formCardTitle}>{formTitle}</h2>
+            <p className={styles.formCardSubtitle}>
+              Fill in the fields below to {attendId ? "update" : "save"}{" "}
+              attendance.
+            </p>
+          </div>
+          <span className={styles.mandatoryHint}>
+            <span className="material-symbols-outlined">info</span>
+            Required fields marked
           </span>
         </div>
+
         <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-          <div className={`${styles.ballsImage} d-none d-md-block`}>
-            <Image
-              src="/assets/images/round-balls.png"
-              alt="Ball Pic"
-              width={125}
-              height={125}
-              priority
-              style={{ objectFit: "contain" }}
-            />
-          </div>
-          {attendId ? (
-            <div className="mt-2">
-              <span className={styles.text}>Date</span>
-              <div className={`mt-1`}>
-                <input
-                  {...register("date", {
-                    required: "Date is required",
-                  })}
-                  className={`${styles.field} w-100`}
-                  type="text"
-                  disabled={true}
-                />
-                {errors?.date && (
-                  <p className="hrms-field-error">{errors?.date?.message}</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <span className={styles.text}>Date</span>
-              <div className="mt-1">
-                <div className={styles.datePickers}>
-                  <Image
-                    src="/assets/icons/Vector-dark.png"
-                    alt="Profile pic"
-                    width={19}
-                    height={18}
-                    className="hrms-calendar-icon"
-                    priority
-                  />
-                  <DatePicker
+          <div className={styles.fieldsRow}>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                Date <span className={styles.required}>*</span>
+              </label>
+              {attendId ? (
+                <>
+                  <input
                     {...register("date", {
-                      required: "Please select start date.",
+                      required: "Date is required",
                     })}
-                    name="start_date"
-                    selected={getValues("date")}
-                    onChange={(date) =>
-                      setValue("date", date, { shouldValidate: true })
-                    }
-                    autoComplete="off"
+                    className={styles.input}
+                    type="text"
+                    disabled
                   />
-                </div>
-                {errors?.date && (
-                  <p className="hrms-field-error">{errors?.date?.message}</p>
-                )}
-              </div>
+                  {errors?.date ? (
+                    <p className={styles.error}>{errors?.date?.message}</p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className={styles.dateWrap}>
+                    <DatePicker
+                      {...register("date", {
+                        required: "Please select start date.",
+                      })}
+                      name="start_date"
+                      selected={getValues("date")}
+                      onChange={(date) =>
+                        setValue("date", date, { shouldValidate: true })
+                      }
+                      autoComplete="off"
+                      placeholderText="Select date"
+                    />
+                    <span
+                      className={`material-symbols-outlined ${styles.dateIcon}`}
+                    >
+                      calendar_month
+                    </span>
+                  </div>
+                  {errors?.date ? (
+                    <p className={styles.error}>{errors?.date?.message}</p>
+                  ) : null}
+                </>
+              )}
             </div>
-          )}
-          <div>
-            <span className={styles.text}>Employee Name</span>
-            {attendId ? (
-              <div className={`mt-1`}>
-                <input
-                  {...register("name", {
-                    required: "Name is required",
-                  })}
-                  className={`${styles.field} w-100`}
-                  type="text"
-                  disabled={true}
-                />
-                {errors?.name && (
-                  <p className="hrms-field-error">{errors?.name?.message}</p>
-                )}
-              </div>
-            ) : (
-              <div className={`mt-2 w-100`}>
-                <Select
-                  {...register("name", {
-                    required: "Name is required",
-                  })}
-                  name="name"
-                  className="w-100"
-                  placeholder=""
-                  value={
-                    getValues("name")
-                      ? {
-                          label: getValues("name").label,
-                          value: getValues("name").value,
-                        }
-                      : null
-                  }
-                  onChange={(val) =>
-                    setValue(
-                      "name",
-                      { value: val?.value, label: val?.label },
-                      { shouldValidate: true }
-                    )
-                  }
-                  options={userList}
-                />
-                {errors?.name && (
-                  <p className="hrms-field-error">{errors?.name?.message}</p>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="mt-2">
-            <span className={styles.text}>Checkin Time:</span>
-            <div className="mt-1">
-              <Controller
-                name="checkin_time"
-                control={control}
-                rules={{ required: "Check-in time is required" }}
-                render={({ field }) => (
-                  <TimePicker
-                    className="w-100"
-                    {...field}
-                    value={
-                      field.value
-                        ? moment(field.value, "hh:mm:ss A").toDate()
-                        : null
-                    }
-                    format="hh:mm:ss a"
-                    disableClock
+
+            <div className={styles.field}>
+              <label className={styles.label}>
+                Employee Name <span className={styles.required}>*</span>
+              </label>
+              {attendId ? (
+                <>
+                  <input
+                    {...register("name", {
+                      required: "Name is required",
+                    })}
+                    className={styles.input}
+                    type="text"
+                    disabled
                   />
-                )}
-              />
-              {errors.checkin_time && (
-                <span className="hrms-field-error">
-                  {errors.checkin_time.message}
-                </span>
+                  {errors?.name ? (
+                    <p className={styles.error}>{errors?.name?.message}</p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className={styles.selectFull}>
+                    <Select
+                      {...register("name", {
+                        required: "Name is required",
+                      })}
+                      name="name"
+                      placeholder="Select employee"
+                      value={
+                        getValues("name")
+                          ? {
+                              label: getValues("name").label,
+                              value: getValues("name").value,
+                            }
+                          : null
+                      }
+                      onChange={(val) =>
+                        setValue(
+                          "name",
+                          { value: val?.value, label: val?.label },
+                          { shouldValidate: true }
+                        )
+                      }
+                      options={userList}
+                      styles={selectStyles}
+                      menuPortalTarget={
+                        typeof document !== "undefined" ? document.body : null
+                      }
+                      menuPosition="fixed"
+                    />
+                  </div>
+                  {errors?.name ? (
+                    <p className={styles.error}>{errors?.name?.message}</p>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
-          <div className="mt-2">
-            <span className={styles.text}>Checkout Time:</span>
-            <div className="mt-1">
-              <Controller
-                name="checkout_time"
-                control={control}
-                // rules={{ required: !attendId && "Check-out time is required" }}
-                render={({ field }) => (
-                  <TimePicker
-                    className="w-100"
-                    {...field}
-                    value={
-                      field.value
-                        ? moment(field.value, "hh:mm:ss A").toDate()
-                        : null
-                    }
-                    format="hh:mm:ss a"
-                    disableClock
-                  />
-                )}
-              />
-              {/* {errors.checkout_time && (
-                <span className="hrms-field-error">
-                  {errors.checkout_time.message}
-                </span>
-              )} */}
+
+          <div className={styles.fieldsRow}>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                Check-in Time <span className={styles.required}>*</span>
+              </label>
+              <div className={styles.timeWrap}>
+                <Controller
+                  name="checkin_time"
+                  control={control}
+                  rules={{ required: "Check-in time is required" }}
+                  render={({ field }) => (
+                    <TimePicker
+                      {...field}
+                      value={
+                        field.value
+                          ? moment(field.value, "hh:mm:ss A").toDate()
+                          : null
+                      }
+                      format="hh:mm:ss a"
+                      disableClock
+                    />
+                  )}
+                />
+              </div>
+              {errors.checkin_time ? (
+                <p className={styles.error}>{errors.checkin_time.message}</p>
+              ) : null}
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Check-out Time</label>
+              <div className={styles.timeWrap}>
+                <Controller
+                  name="checkout_time"
+                  control={control}
+                  render={({ field }) => (
+                    <TimePicker
+                      {...field}
+                      value={
+                        field.value
+                          ? moment(field.value, "hh:mm:ss A").toDate()
+                          : null
+                      }
+                      format="hh:mm:ss a"
+                      disableClock
+                    />
+                  )}
+                />
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div
-              className="d-flex"
-              style={{ width: "108%", justifyContent: "space-around" }}
+
+          <div className={styles.formActions}>
+            <button
+              type="button"
+              className={styles.btnCancel}
+              onClick={() => router.push("/hrms/employee/attendance")}
             >
-              <Button
-                className={`w-25 hrms-button`}
-                variant="primary"
-                size="md"
-                type="button"
-                onClick={() => router.push("/hrms/employee/attendance")}
-              >
-                Cancel
-              </Button>
-              <Button
-                className={`w-25 hrms-button`}
-                variant="primary"
-                size="md"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? <ButtonLoader /> : attendId ? "Update" : "Create"}
-              </Button>
-            </div>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={styles.btnSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? <ButtonLoader /> : attendId ? "Update" : "Create"}
+            </button>
           </div>
         </form>
       </div>

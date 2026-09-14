@@ -1,21 +1,15 @@
 "use client";
-import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import DynamicTable from "../table";
-import styles from "./attendanceDetail.module.css";
+import styles from "./attendanceList.module.css";
 import moment from "moment";
 import DatePicker from "react-datepicker";
-import SearchField from "../SearchField";
 import { useRouter } from "next/navigation";
-import useIsMobile from "@/utils/useIsMobile";
-import { Button, Dropdown } from "react-bootstrap";
 import ButtonLoader from "../ButtonLoader.jsx";
 import { toast } from "react-toastify";
 import { generateAttendancePdf } from "@/utils/pdfGenerator";
 
 const AttendanceDetailComponent = () => {
   const router = useRouter();
-  const isMobile = useIsMobile();
   const [employeeData, setEmployeeData] = useState([]);
   const [name, setName] = useState("");
   const [debouncedName, setDebouncedName] = useState(name);
@@ -61,7 +55,7 @@ const AttendanceDetailComponent = () => {
     const result = await response.json();
 
     if (response.status === 200) {
-      const formattedData = result?.data?.data?.map((att, index) => ({
+      const formattedData = result?.data?.data?.map((att) => ({
         id: att?.id,
         date: att?.checkin_time
           ? moment(att?.checkin_time).format("YYYY-MM-DD")
@@ -73,59 +67,22 @@ const AttendanceDetailComponent = () => {
         checkOut: att?.checkout_time
           ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
           : "",
-        hour: att?.total_hour
-          ? `${att?.total_hour}${att.early_out ? " - Early out" : ""}`
-          : "",
+        hour: att?.total_hour || "",
+        earlyOut: Boolean(att?.early_out),
       }));
       setIsLoading(false);
       setEmployeeData(formattedData);
       setTotalRecord(result?.data?.count);
+    } else {
+      setIsLoading(false);
     }
   };
+
   useEffect(() => {
     getEmployeeAttendance();
   }, [currentPage, recordsPerPage, debouncedName, startDate, endDate]);
 
-  const configData = [
-    {
-      label: "Date",
-      key: "date",
-    },
-    {
-      label: "Employee Name",
-      key: "name",
-    },
-    {
-      label: "Check In",
-      key: "checkIn",
-    },
-    {
-      label: "Check Out",
-      key: "checkOut",
-    },
-    {
-      label: "Total Hour",
-      key: "hour",
-    },
-    {
-      label: "Action",
-      isIcon: true,
-      icons: [
-        {
-          src: "/assets/icons/Edit.svg",
-          alt: "Edit",
-          action: "edit",
-        },
-        {
-          src: "/assets/icons/Delete.svg",
-          alt: "Delete",
-          action: "delete",
-        },
-      ],
-    },
-  ];
-
-  const handleIconClick = (rowData) => {
+  const handleEditClick = (rowData) => {
     router.push(`/hrms/employee/attendance/edit/${rowData?.id}`);
   };
 
@@ -160,7 +117,6 @@ const AttendanceDetailComponent = () => {
             progress: undefined,
             theme: "colored",
           });
-          // Refresh the data
           getEmployeeAttendance();
         } else {
           toast.error(result?.error || "Failed to delete attendance record", {
@@ -254,94 +210,271 @@ const AttendanceDetailComponent = () => {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalRecord / recordsPerPage) || 1);
+  const showingFrom =
+    totalRecord === 0 ? 0 : (currentPage - 1) * recordsPerPage + 1;
+  const showingTo = Math.min(currentPage * recordsPerPage, totalRecord);
+
+  const pageNumbers = (() => {
+    const pages = [];
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    start = Math.max(1, end - maxButtons + 1);
+    for (let i = start; i <= end; i += 1) {
+      pages.push(i);
+    }
+    return pages;
+  })();
+
+  const tableBusy = isLoading || deleteLoading;
+
   return (
-    <div className="mainContainer">
-      <div className={styles.listForms}>
-        <span
-          className="d-none d-sm-block"
-          style={{ fontSize: "30px", fontWeight: "700" }}
-        >
-          Employee Attendance
-        </span>
-        <div className="d-flex justify-content-between align-items-sm-start mt-4 align-items-md-center mb-3 flex-md-row flex-column">
-          <div className="d-flex">
-            <div className={styles.datePicker}>
-              <Image
-                src="/assets/images/Vector.png"
-                alt="Profile pic"
-                width={16}
-                height={16}
-                className="hrms-calendar-icon"
-                priority
-              />
-              <DatePicker
-                selected={startDate}
-                onChange={(date) => setStartDate(date)}
-                placeholderText="Start Date"
-              />
-            </div>
-            <div className={`${styles.datePicker} ${styles.marginStart}`}>
-              <Image
-                src="/assets/images/Vector.png"
-                alt="Profile pic"
-                width={16}
-                height={16}
-                className="hrms-calendar-icon"
-                priority
-              />
-              <DatePicker
-                selected={endDate}
-                onChange={(date) => setEndDate(date)}
-                placeholderText="End Date"
-              />
-            </div>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>Employee Attendance</h1>
           </div>
-          <div className="mt-md-0 mt-3">
-            <SearchField
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Search by name"
-            />
-          </div>
+          <p className={styles.subtitle}>
+            Review check-in and check-out records, export reports, and manage
+            attendance entries.
+          </p>
         </div>
-        <div
-          className={`d-flex justify-content-between justify-content-md-between mt-3 mb-3 ${styles.btnCont}`}
-        >
-          <Dropdown className="mt-3">
-            <Dropdown.Toggle
-              onClick={filteredPdfHandler}
-              variant="success"
-              id="dropdown-basic"
-              disabled={pdfLoading}
-              style={{ width: "140px" }}
-            >
-              {pdfLoading ? <ButtonLoader /> : "Download PDF"}
-            </Dropdown.Toggle>
-          </Dropdown>
-          <Button
-            className={`hrms-button mt-3`}
-            variant="primary"
-            size="md"
-            type="submit"
-            style={{ width: "206px", height: "40px" }}
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={filteredPdfHandler}
+            disabled={pdfLoading}
+          >
+            {pdfLoading ? (
+              <ButtonLoader />
+            ) : (
+              <>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 18 }}
+                >
+                  picture_as_pdf
+                </span>
+                Download PDF
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            className={styles.btnPrimary}
             onClick={() => router.push("/hrms/employee/attendance/create")}
           >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+              add
+            </span>
             Add Attendance
-          </Button>
+          </button>
         </div>
-        <DynamicTable
-          config={configData}
-          data={employeeData}
-          totalRecord={totalRecord}
-          currentPage={currentPage}
-          recordsPerPage={recordsPerPage}
-          setCurrentPage={setCurrentPage}
-          setRecordsPerPage={setRecordsPerPage}
-          onIconClick={handleIconClick}
-          onDeleteClick={handleDeleteClick}
-          tableHeight={isMobile ? "400" : "360"}
-          isLoading={isLoading || deleteLoading}
-        />
+      </div>
+
+      <div className={styles.tableCard}>
+        <div className={styles.filterBar}>
+          <div className={styles.filterLeft}>
+            <div className={styles.dateWrap}>
+              <DatePicker
+                selected={startDate}
+                onChange={(date) => {
+                  setCurrentPage(1);
+                  setStartDate(date);
+                }}
+                placeholderText="Start Date"
+                isClearable
+              />
+              <span className={`material-symbols-outlined ${styles.dateIcon}`}>
+                calendar_month
+              </span>
+            </div>
+
+            <div className={styles.dateWrap}>
+              <DatePicker
+                selected={endDate}
+                onChange={(date) => {
+                  setCurrentPage(1);
+                  setEndDate(date);
+                }}
+                placeholderText="End Date"
+                isClearable
+              />
+              <span className={`material-symbols-outlined ${styles.dateIcon}`}>
+                calendar_month
+              </span>
+            </div>
+
+            <input
+              className={styles.searchInput}
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setName(e.target.value);
+              }}
+              placeholder="Search by name"
+              aria-label="Search by name"
+            />
+          </div>
+
+          <div className={styles.filterRight}>
+            <span>Showing</span>
+            <select
+              className={styles.pageSelect}
+              value={recordsPerPage}
+              onChange={(e) => {
+                setRecordsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              aria-label="Records per page"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+            </select>
+            <span>records</span>
+          </div>
+        </div>
+
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Employee Name</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Total Hour</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableBusy ? (
+                <tr>
+                  <td colSpan={6} className={styles.loadingRow}>
+                    Loading attendance records…
+                  </td>
+                </tr>
+              ) : employeeData?.length > 0 ? (
+                employeeData.map((row, index) => (
+                  <tr
+                    key={row.id}
+                    className={index % 2 === 1 ? styles.rowAlt : undefined}
+                  >
+                    <td className={styles.cellStrong}>{row.date || "—"}</td>
+                    <td className={styles.cellStrong}>{row.name || "—"}</td>
+                    <td className={styles.cellMuted}>{row.checkIn || "—"}</td>
+                    <td className={styles.cellMuted}>{row.checkOut || "—"}</td>
+                    <td className={styles.cellMuted}>
+                      {row.hour || "—"}
+                      {row.earlyOut ? (
+                        <span className={styles.earlyOut}>Early out</span>
+                      ) : null}
+                    </td>
+                    <td className={styles.actionCell}>
+                      <div className={styles.actionBtns}>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title="Edit"
+                          aria-label="Edit attendance"
+                          onClick={() => handleEditClick(row)}
+                        >
+                          <span className="material-symbols-outlined">
+                            edit
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                          title="Delete"
+                          aria-label="Delete attendance"
+                          onClick={() => handleDeleteClick(row)}
+                        >
+                          <span className="material-symbols-outlined">
+                            delete
+                          </span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className={styles.emptyRow}>
+                    No attendance records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.paginationBar}>
+          <span className={styles.paginationInfo}>
+            Showing{" "}
+            <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
+            <span className={styles.paginationBold}>{showingTo}</span> of{" "}
+            <span className={styles.paginationBold}>{totalRecord}</span>{" "}
+            entries
+          </span>
+          <div className={styles.pageBtns}>
+            <button
+              type="button"
+              className={styles.pageBtn}
+              aria-label="Previous page"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+              >
+                chevron_left
+              </span>
+            </button>
+            {pageNumbers.map((num, idx) => {
+              const prev = pageNumbers[idx - 1];
+              const showEllipsis = prev && num - prev > 1;
+              return (
+                <React.Fragment key={num}>
+                  {showEllipsis ? (
+                    <span className={styles.pageEllipsis}>…</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`${styles.pageBtn} ${
+                      num === currentPage ? styles.pageBtnActive : ""
+                    }`}
+                    onClick={() => setCurrentPage(num)}
+                  >
+                    {num}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+            <button
+              type="button"
+              className={styles.pageBtn}
+              aria-label="Next page"
+              disabled={currentPage >= totalPages}
+              onClick={() =>
+                setCurrentPage((p) => Math.min(totalPages, p + 1))
+              }
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+              >
+                chevron_right
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
