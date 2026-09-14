@@ -21,6 +21,10 @@ import {
   getRequiredHours,
   isEarlyOutHours,
 } from "@/utils/attendanceDisplay";
+import {
+  ATTENDANCE_PUNCH_EVENT,
+  notifyAttendancePunch,
+} from "@/utils/attendancePunchEvents";
 
 function AttendanceComponent() {
   const { employeeData, logout } = useEmployee();
@@ -46,7 +50,7 @@ function AttendanceComponent() {
 
   const totalPages = Math.max(1, Math.ceil(totalRecord / recordsPerPage) || 1);
 
-  const getEmployeeDetail = async () => {
+  const getEmployeeDetail = async ({ silent = false } = {}) => {
     if (!employeeData?.supabase_user_id) return;
     const startOfToday = new Date(startDate);
     startOfToday.setHours(0, 0, 0, 0);
@@ -55,7 +59,7 @@ function AttendanceComponent() {
     endOfToday.setHours(23, 59, 59, 999);
     const start = (currentPage - 1) * recordsPerPage;
     const end = start + recordsPerPage - 1;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     const response = await fetch(
       `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
       {
@@ -83,10 +87,10 @@ function AttendanceComponent() {
         rawCheckout: att?.checkout_time,
         earlyOut: att?.early_out === true || att?.early_out === "true",
       }));
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
       setAttendanceList(formattedData || []);
       setTotalRecord(result?.data?.count || 0);
-    } else {
+    } else if (!silent) {
       setIsLoading(false);
     }
   };
@@ -97,7 +101,7 @@ function AttendanceComponent() {
     const endOfToday = moment().endOf("day").toDate();
     try {
       const response = await fetch(
-        `/api/attendance/get-all?start=0&end=0&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        `/api/attendance/get-all?start=0&end=1&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -122,7 +126,6 @@ function AttendanceComponent() {
     endOfRange.setHours(23, 59, 59, 999);
 
     try {
-      // No pagination range → API returns all month rows for this user
       const response = await fetch(
         `/api/attendance/get-all?user_id=${employeeData.supabase_user_id}&startOfToday=${startOfRange}&endOfToday=${endOfRange}&startDate=${monthStart}&endDate=${monthEnd}`,
         {
@@ -144,6 +147,14 @@ function AttendanceComponent() {
     }
   };
 
+  const refreshAfterPunch = async () => {
+    await Promise.all([
+      fetchTodaySession(),
+      getEmployeeDetail({ silent: true }),
+      fetchMonthMetrics(),
+    ]);
+  };
+
   useEffect(() => {
     if (employeeData) {
       getEmployeeDetail();
@@ -155,6 +166,12 @@ function AttendanceComponent() {
   useEffect(() => {
     if (!employeeData?.supabase_user_id) return;
 
+    const refreshSilent = () => {
+      getEmployeeDetail({ silent: true });
+      fetchTodaySession();
+      fetchMonthMetrics();
+    };
+
     const subscription = supabase
       .channel("table-db-changes")
       .on(
@@ -165,19 +182,25 @@ function AttendanceComponent() {
           table: "attendance",
         },
         (payload) => {
+          const uid = employeeData?.supabase_user_id;
           if (
-            payload.new?.supabase_user_id === employeeData?.supabase_user_id
+            payload.new?.supabase_user_id === uid ||
+            payload.old?.supabase_user_id === uid
           ) {
-            getEmployeeDetail();
-            fetchTodaySession();
-            fetchMonthMetrics();
+            refreshSilent();
           }
         }
       )
       .subscribe();
 
+    const onPunch = () => {
+      refreshSilent();
+    };
+    window.addEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
     };
   }, [employeeData?.supabase_user_id]);
 
@@ -229,15 +252,15 @@ function AttendanceComponent() {
       setElapsed("");
       return;
     }
-    const tick = () => {
+    const runTick = () => {
       const diff = calculateTimeDifference(todaySession.checkin_time);
       if (diff && diff !== "Invalid Date") {
         const [h, m, s] = diff.split(":");
         setElapsed(`${h}h ${m}m ${s}s`);
       }
     };
-    tick();
-    const id = setInterval(tick, 1000);
+    runTick();
+    const id = setInterval(runTick, 1000);
     return () => clearInterval(id);
   }, [activeToday, todaySession?.checkin_time]);
 
@@ -246,8 +269,69 @@ function AttendanceComponent() {
     return moment.utc(todaySession.checkin_time).local().format("hh:mm A");
   }, [todaySession?.checkin_time]);
 
-  const refreshAfterPunch = async () => {
-    await Promise.all([fetchTodaySession(), getEmployeeDetail(), fetchMonthMetrics()]);
+  const applyOptimisticCheckin = () => {
+    const nowIso = new Date().toISOString();
+    const todayDate = moment().format("YYYY-MM-DD");
+    setTodaySession({
+      checkin_time: nowIso,
+      checkout_time: null,
+      total_hour: null,
+      early_out: false,
+      supabase_user_id: employeeData?.supabase_user_id,
+    });
+    setElapsed("00h 00m 00s");
+    setAttendanceList((prev) => {
+      const withoutToday = (prev || []).filter((row) => row.date !== todayDate);
+      return [
+        {
+          id: `temp-checkin-${Date.now()}`,
+          date: todayDate,
+          checkIn: moment(nowIso).format("hh:mm:ss A"),
+          checkOut: "",
+          hour: null,
+          rawCheckin: nowIso,
+          rawCheckout: null,
+          earlyOut: false,
+        },
+        ...withoutToday,
+      ];
+    });
+  };
+
+  const applyOptimisticCheckout = () => {
+    const nowIso = new Date().toISOString();
+    const checkin = todaySession?.checkin_time;
+    const totalHour = checkin
+      ? calculateTimeDifference(checkin)
+      : null;
+    const earlyOut = totalHour
+      ? isEarlyOutHours(totalHour, requiredHours)
+      : false;
+    const todayDate = moment().format("YYYY-MM-DD");
+
+    setTodaySession((prev) =>
+      prev
+        ? {
+            ...prev,
+            checkout_time: nowIso,
+            total_hour: totalHour,
+            early_out: earlyOut,
+          }
+        : prev
+    );
+    setElapsed("");
+    setAttendanceList((prev) =>
+      (prev || []).map((row) => {
+        if (row.date !== todayDate || row.checkOut) return row;
+        return {
+          ...row,
+          checkOut: moment(nowIso).format("hh:mm:ss A"),
+          hour: totalHour,
+          rawCheckout: nowIso,
+          earlyOut,
+        };
+      })
+    );
   };
 
   const checkinHandler = async () => {
@@ -274,6 +358,8 @@ function AttendanceComponent() {
           progress: undefined,
           theme: "colored",
         });
+        applyOptimisticCheckin();
+        notifyAttendancePunch({ action: "checkin" });
         await refreshAfterPunch();
       } else if (response?.status === 201 || response?.status === 403) {
         toast.warn(result?.data, {
@@ -327,6 +413,8 @@ function AttendanceComponent() {
           progress: undefined,
           theme: "colored",
         });
+        applyOptimisticCheckout();
+        notifyAttendancePunch({ action: "checkout" });
         await refreshAfterPunch();
       } else if (response?.status === 201 || response?.status === 403) {
         toast.warn(result?.data, {

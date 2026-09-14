@@ -13,6 +13,7 @@ import moment from "moment";
 import ButtonLoader from "../ButtonLoader.jsx";
 import UserActions from "../header/UserActions";
 import useIsMobile from "@/utils/useIsMobile";
+import { notifyAttendancePunch } from "@/utils/attendancePunchEvents";
 
 const SidebarComponent = () => {
   const fileInputRef = useRef(null);
@@ -112,6 +113,7 @@ const SidebarComponent = () => {
       });
       setIsLoading(false);
       setIsOpen(false);
+      notifyAttendancePunch({ action: "checkin" });
     } else if (response?.status === 201 || response?.status === 403) {
       toast.warn(result?.data, {
         position: "bottom-right",
@@ -166,6 +168,7 @@ const SidebarComponent = () => {
       });
       setcheckoutLoading(false);
       setIsOpen(false);
+      notifyAttendancePunch({ action: "checkout" });
     } else if (response?.status === 201 || response?.status === 403) {
       toast.warn(result?.data, {
         position: "bottom-right",
