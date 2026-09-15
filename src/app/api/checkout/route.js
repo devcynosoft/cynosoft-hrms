@@ -42,13 +42,24 @@ export async function PATCH(req) {
 
     const startTime = new Date(today);
     startTime.setHours(0, 0, 0, 0);
+
+    // Fetch job_type from DB to avoid relying on client payload
+    const { data: empRecord } = await supabase
+      .from("employees")
+      .select("job_type")
+      .eq("supabase_user_id", employeeData?.supabase_user_id)
+      .single();
+
+    const jobType = empRecord?.job_type;
     let jobHour;
-    if (employeeData.job_type === "fullTime") {
+    if (jobType === "fullTime") {
       jobHour = "09:00:00";
-    }
-    if (employeeData.job_type === "partTime") {
+    } else if (jobType === "partTime") {
       jobHour = "04:00:00";
+    } else {
+      jobHour = "09:00:00"; // explicit safe default
     }
+
     const { data: attendanceData, error: fetchError } = await supabase
       .from("attendance")
       .select("id, checkin_time")
@@ -67,7 +78,7 @@ export async function PATCH(req) {
         return h * 3600 + m * 60 + s;
       };
       const workedSeconds = parseHmsToSeconds(timeDifference);
-      const requiredSeconds = parseHmsToSeconds(jobHour || "09:00:00");
+      const requiredSeconds = parseHmsToSeconds(jobHour);
       const { data: updateData, error: updateError } = await supabase
         .from("attendance")
         .update({
