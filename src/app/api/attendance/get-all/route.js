@@ -51,15 +51,22 @@ export async function GET(req, res) {
         checkout_time, 
         total_hour, 
         early_out,
+        supabase_user_id,
         employees(name)
       `
       )
-      .order("checkin_time", { ascending: false })
-      .eq("employees.is_current", true);
+      .order("checkin_time", { ascending: false });
+
+    // Admin list filters to current employees; user-scoped fetches must not
+    // drop rows via embed filter (breaks live punch after check-in).
+    if (!user_id && !attendId) {
+      query = query.eq("employees.is_current", true);
+    }
+
     if (attendId) {
       query = query.eq("id", attendId);
     }
-    if (start >= 0 && end) {
+    if (start !== null && end !== null && !Number.isNaN(start) && !Number.isNaN(end)) {
       query = query.range(start, end);
     }
     if (user_id) {
@@ -67,14 +74,15 @@ export async function GET(req, res) {
     }
     if (name) {
       query = query
+        .eq("employees.is_current", true)
         .ilike("employees.name", `%${name}%`)
         .not("employees", "is", null);
     }
-    if (startDate) {
-      query = query.gte("checkin_time", `${startOfToday.toISOString()}`);
+    if (startDate && startOfToday && !Number.isNaN(startOfToday.getTime())) {
+      query = query.gte("checkin_time", startOfToday.toISOString());
     }
-    if (endDate) {
-      query = query.lte("checkin_time", `${endOfToday.toISOString()}`);
+    if (endDate && endOfToday && !Number.isNaN(endOfToday.getTime())) {
+      query = query.lte("checkin_time", endOfToday.toISOString());
     }
 
     const { data, error } = await query;

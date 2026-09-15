@@ -34,7 +34,7 @@ function AttendanceComponent() {
   const [endDate, setEndDate] = useState(null);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage, setRecordsPerPage] = useState(5);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -97,11 +97,20 @@ function AttendanceComponent() {
 
   const fetchTodaySession = async () => {
     if (!employeeData?.supabase_user_id) return;
-    const startOfToday = moment().startOf("day").toDate();
-    const endOfToday = moment().endOf("day").toDate();
+    const startOfToday = moment().startOf("day").toISOString();
+    const endOfToday = moment().endOf("day").toISOString();
     try {
+      // Fetch today's rows (no tiny range) and prefer an open session
       const response = await fetch(
-        `/api/attendance/get-all?start=0&end=1&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        `/api/attendance/get-all?user_id=${encodeURIComponent(
+          employeeData.supabase_user_id
+        )}&startOfToday=${encodeURIComponent(
+          startOfToday
+        )}&endOfToday=${encodeURIComponent(
+          endOfToday
+        )}&startDate=${encodeURIComponent(
+          startOfToday
+        )}&endDate=${encodeURIComponent(endOfToday)}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -109,7 +118,23 @@ function AttendanceComponent() {
       );
       const result = await response.json();
       if (response.status === 200) {
-        setTodaySession(result?.data?.data?.[0] || null);
+        const rows = result?.data?.data || [];
+        const openSession =
+          rows.find((r) => r?.checkin_time && !r?.checkout_time) || null;
+        const latest = rows[0] || null;
+        const session = openSession || latest;
+
+        setTodaySession((prev) => {
+          // Don't wipe an optimistic / open check-in if the API is briefly empty
+          if (
+            !session &&
+            prev?.checkin_time &&
+            !prev?.checkout_time
+          ) {
+            return prev;
+          }
+          return session;
+        });
       }
     } catch (e) {
       // ignore
@@ -269,27 +294,32 @@ function AttendanceComponent() {
     return moment.utc(todaySession.checkin_time).local().format("hh:mm A");
   }, [todaySession?.checkin_time]);
 
-  const applyOptimisticCheckin = () => {
-    const nowIso = new Date().toISOString();
+  const applyOptimisticCheckin = (checkinTimeIso = new Date().toISOString()) => {
     const todayDate = moment().format("YYYY-MM-DD");
     setTodaySession({
-      checkin_time: nowIso,
+      checkin_time: checkinTimeIso,
       checkout_time: null,
       total_hour: null,
       early_out: false,
       supabase_user_id: employeeData?.supabase_user_id,
     });
-    setElapsed("00h 00m 00s");
+    const diff = calculateTimeDifference(checkinTimeIso);
+    if (diff && diff !== "Invalid Date") {
+      const [h, m, s] = diff.split(":");
+      setElapsed(`${h}h ${m}m ${s}s`);
+    } else {
+      setElapsed("00h 00m 00s");
+    }
     setAttendanceList((prev) => {
       const withoutToday = (prev || []).filter((row) => row.date !== todayDate);
       return [
         {
           id: `temp-checkin-${Date.now()}`,
           date: todayDate,
-          checkIn: moment(nowIso).format("hh:mm:ss A"),
+          checkIn: moment(checkinTimeIso).format("hh:mm:ss A"),
           checkOut: "",
           hour: null,
-          rawCheckin: nowIso,
+          rawCheckin: checkinTimeIso,
           rawCheckout: null,
           earlyOut: false,
         },
@@ -359,8 +389,9 @@ function AttendanceComponent() {
           theme: "colored",
         });
         applyOptimisticCheckin();
-        notifyAttendancePunch({ action: "checkin" });
+        // Refresh first, then notify other listeners (avoids wiping optimistic UI)
         await refreshAfterPunch();
+        notifyAttendancePunch({ action: "checkin" });
       } else if (response?.status === 201 || response?.status === 403) {
         toast.warn(result?.data, {
           position: "bottom-right",
@@ -414,8 +445,8 @@ function AttendanceComponent() {
           theme: "colored",
         });
         applyOptimisticCheckout();
-        notifyAttendancePunch({ action: "checkout" });
         await refreshAfterPunch();
+        notifyAttendancePunch({ action: "checkout" });
       } else if (response?.status === 201 || response?.status === 403) {
         toast.warn(result?.data, {
           position: "bottom-right",

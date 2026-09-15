@@ -1,8 +1,12 @@
 import moment from "moment";
 
 export const isActiveSession = (row) => {
-  if (!row?.checkIn || row?.checkOut) return false;
-  const date = row?.date || row?.rawCheckin;
+  const hasCheckIn = Boolean(row?.checkIn || row?.rawCheckin || row?.checkin_time);
+  const hasCheckOut = Boolean(
+    row?.checkOut || row?.rawCheckout || row?.checkout_time
+  );
+  if (!hasCheckIn || hasCheckOut) return false;
+  const date = row?.date || row?.rawCheckin || row?.checkin_time;
   if (!date) return false;
   return moment(date).isSame(moment(), "day");
 };

@@ -41,7 +41,7 @@ const LeaveListComponent = () => {
   const [leavesData, setLeavesData] = useState([]);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage, setRecordsPerPage] = useState(5);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [modalVisible, setModalVisible] = useState(false);
   const [leaveStatus, setleaveStatus] = useState(false);
   const [selectedRowData, setSelectedRowData] = useState(null);

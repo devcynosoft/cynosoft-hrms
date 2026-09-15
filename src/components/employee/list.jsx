@@ -13,7 +13,7 @@ const EmployeeListComponent = () => {
   const [debouncedName, setDebouncedName] = useState(name);
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage, setRecordsPerPage] = useState(5);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {

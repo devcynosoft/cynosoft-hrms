@@ -44,11 +44,19 @@ const SidebarComponent = () => {
 
   const fetchTodayCheckin = async () => {
     if (!employeeData?.supabase_user_id) return;
-    const startOfToday = moment().startOf("day").toDate();
-    const endOfToday = moment().endOf("day").toDate();
+    const startOfToday = moment().startOf("day").toISOString();
+    const endOfToday = moment().endOf("day").toISOString();
     try {
       const response = await fetch(
-        `/api/attendance/get-all?start=0&end=0&user_id=${employeeData.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startOfToday}&endDate=${endOfToday}`,
+        `/api/attendance/get-all?user_id=${encodeURIComponent(
+          employeeData.supabase_user_id
+        )}&startOfToday=${encodeURIComponent(
+          startOfToday
+        )}&endOfToday=${encodeURIComponent(
+          endOfToday
+        )}&startDate=${encodeURIComponent(
+          startOfToday
+        )}&endDate=${encodeURIComponent(endOfToday)}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -56,7 +64,11 @@ const SidebarComponent = () => {
       );
       const result = await response.json();
       if (response.status === 200) {
-        const today = result?.data?.data?.[0];
+        const rows = result?.data?.data || [];
+        const today =
+          rows.find((r) => r?.checkin_time && !r?.checkout_time) ||
+          rows[0] ||
+          null;
         if (today?.checkin_time && !today?.checkout_time) {
           setCheckedInTime(
             moment.utc(today.checkin_time).local().format("hh:mm A")
