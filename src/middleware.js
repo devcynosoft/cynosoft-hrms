@@ -47,6 +47,7 @@ export async function middleware(req) {
     "/hrms/employee/attendance/create/",
     "/hrms/employee/attendance/edit/",
     "/hrms/employee/create/",
+    "/hrms/employee/details/",
   ];
 
   if (userId && adminRoutes.some((route) => pathname.startsWith(route))) {

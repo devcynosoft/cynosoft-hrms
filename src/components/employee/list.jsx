@@ -58,6 +58,10 @@ const EmployeeListComponent = () => {
     router.push(`/hrms/employee/edit/${rowData?.id}`);
   };
 
+  const handleDetailsClick = (rowData) => {
+    router.push(`/hrms/employee/details/${rowData?.id}`);
+  };
+
   const jobStatusValue =
     jobStatus == null
       ? ""
@@ -111,7 +115,7 @@ const EmployeeListComponent = () => {
           </div>
           <p className={styles.subtitle}>
             Browse employee profiles, filter by job status, and open records to
-            edit.
+            view analytics or edit.
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -247,15 +251,28 @@ const EmployeeListComponent = () => {
                       </span>
                     </td>
                     <td className={styles.actionCell}>
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title="Edit"
-                        aria-label="Edit employee"
-                        onClick={() => handleEditClick(row)}
-                      >
-                        <span className="material-symbols-outlined">edit</span>
-                      </button>
+                      <div className={styles.actionGroup}>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title="View details"
+                          aria-label="View employee details"
+                          onClick={() => handleDetailsClick(row)}
+                        >
+                          <span className="material-symbols-outlined">
+                            visibility
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title="Edit"
+                          aria-label="Edit employee"
+                          onClick={() => handleEditClick(row)}
+                        >
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

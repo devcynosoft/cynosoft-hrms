@@ -398,13 +398,19 @@
   text-align: right;
 }
 
+.actionGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
 .iconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  margin-left: auto;
   border: none;
   border-radius: 0.5rem;
   background: var(--hrms-surface-container-low);
