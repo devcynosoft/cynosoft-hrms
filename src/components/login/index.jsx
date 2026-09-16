@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Image from "next/image";
 import styles from "./login.module.css";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabaseClient";
 import Cookies from "js-cookie";
 import { useForm } from "react-hook-form";
@@ -18,7 +17,6 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 const LoginComponent = () => {
-  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -110,11 +108,15 @@ const LoginComponent = () => {
             theme: "colored",
           });
         } else {
-          Cookies.set("user_id", data?.user?.id);
+          const session = data.session;
+          const accessTokenExpiry = new Date(session.expires_at * 1000);
+          const cookieOpts = { expires: accessTokenExpiry, sameSite: "lax" };
+          Cookies.set("user_id", session.user.id, cookieOpts);
           Cookies.set("signin_toast", "true");
-          Cookies.set("access_token", data?.session?.access_token);
+          Cookies.set("access_token", session.access_token, cookieOpts);
+          Cookies.set("refresh_token", session.refresh_token, cookieOpts);
           setIsLoading(false);
-          router.push("/hrms/dashboard");
+          window.location.href = "/hrms/dashboard";
         }
       } catch (error) {
         setIsLoading(false);

@@ -63,6 +63,7 @@ export const EmployeeProvider = ({ children }) => {
     Cookies.remove("user_id");
     Cookies.remove("signin_toast");
     Cookies.remove("access_token");
+    Cookies.remove("refresh_token");
     Cookies.set("signout_toast", "true");
     router.push("/hrms/login");
   }, []);
