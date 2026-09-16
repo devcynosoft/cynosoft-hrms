@@ -1,6 +1,15 @@
 import { supabase } from "@/utils/supabaseClient";
 
-export async function GET(req, res) {
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
+export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const user_id =
@@ -95,6 +104,7 @@ export async function GET(req, res) {
         }),
         {
           status: 200,
+          headers: NO_STORE_HEADERS,
         }
       );
     }
@@ -132,6 +142,7 @@ export async function GET(req, res) {
         }),
         {
           status: 500,
+          headers: NO_STORE_HEADERS,
         }
       );
     } else {
@@ -142,6 +153,7 @@ export async function GET(req, res) {
         }),
         {
           status: 200,
+          headers: NO_STORE_HEADERS,
         }
       );
     }
@@ -153,6 +165,7 @@ export async function GET(req, res) {
       }),
       {
         status: 500,
+        headers: NO_STORE_HEADERS,
       }
     );
   }

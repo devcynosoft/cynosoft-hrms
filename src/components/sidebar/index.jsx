@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./sidebar.module.css";
 import { supabase } from "@/utils/supabaseClient";
 import Image from "next/image";
@@ -13,10 +13,23 @@ import moment from "moment";
 import ButtonLoader from "../ButtonLoader.jsx";
 import UserActions from "../header/UserActions";
 import useIsMobile from "@/utils/useIsMobile";
-import { notifyAttendancePunch } from "@/utils/attendancePunchEvents";
+import {
+  ATTENDANCE_PUNCH_EVENT,
+  notifyAttendancePunch,
+} from "@/utils/attendancePunchEvents";
+
+const NO_STORE_FETCH = {
+  method: "GET",
+  cache: "no-store",
+  headers: {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-cache",
+  },
+};
 
 const SidebarComponent = () => {
   const fileInputRef = useRef(null);
+  const todayFetchSeq = useRef(0);
   const pathname = usePathname();
   const { logout, employeeData, setEmployeeData } = useEmployee();
   const isMobile = useIsMobile();
@@ -30,6 +43,8 @@ const SidebarComponent = () => {
   const [checkedInTime, setCheckedInTime] = useState(null);
   const [punchStatus, setPunchStatus] = useState("none"); // none | checked_in | checked_out
 
+  const userId = employeeData?.supabase_user_id;
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -42,14 +57,15 @@ const SidebarComponent = () => {
     return pathname.includes(href.replace(/\/$/, ""));
   };
 
-  const fetchTodayCheckin = async () => {
-    if (!employeeData?.supabase_user_id) return;
+  const fetchTodayCheckin = useCallback(async () => {
+    if (!userId) return;
+    const requestId = ++todayFetchSeq.current;
     const startOfToday = moment().startOf("day").toISOString();
     const endOfToday = moment().endOf("day").toISOString();
     try {
       const response = await fetch(
         `/api/attendance/get-all?user_id=${encodeURIComponent(
-          employeeData.supabase_user_id
+          userId
         )}&startOfToday=${encodeURIComponent(
           startOfToday
         )}&endOfToday=${encodeURIComponent(
@@ -57,12 +73,10 @@ const SidebarComponent = () => {
         )}&startDate=${encodeURIComponent(
           startOfToday
         )}&endDate=${encodeURIComponent(endOfToday)}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
+        NO_STORE_FETCH
       );
       const result = await response.json();
+      if (requestId !== todayFetchSeq.current) return;
       if (response.status === 200) {
         const rows = result?.data?.data || [];
         const today =
@@ -85,15 +99,65 @@ const SidebarComponent = () => {
         }
       }
     } catch (e) {
-      // ignore
+      console.error("Failed to fetch sidebar attendance status:", e);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
-    if (employeeData?.supabase_user_id) {
+    if (userId) {
       fetchTodayCheckin();
     }
-  }, [employeeData?.supabase_user_id, isLoading, checkoutLoading]);
+  }, [userId, isLoading, checkoutLoading, fetchTodayCheckin]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`sidebar-attendance-changes-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance",
+          filter: `supabase_user_id=eq.${userId}`,
+        },
+        () => {
+          fetchTodayCheckin();
+        }
+      )
+      .subscribe();
+
+    const onPunch = () => {
+      fetchTodayCheckin();
+    };
+
+    const onResume = () => {
+      if (document.visibilityState === "hidden") return;
+      fetchTodayCheckin();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchTodayCheckin();
+      }
+    };
+
+    window.addEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("online", onResume);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("online", onResume);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [userId, fetchTodayCheckin]);
 
   const signoutHandler = async () => {
     setSignoutLoading(true);

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import DatePicker from "react-datepicker";
 import styles from "./attendance.module.css";
@@ -26,9 +26,21 @@ import {
   notifyAttendancePunch,
 } from "@/utils/attendancePunchEvents";
 
+const NO_STORE_FETCH = {
+  method: "GET",
+  cache: "no-store",
+  headers: {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-cache",
+  },
+};
+
 function AttendanceComponent() {
   const { employeeData, logout } = useEmployee();
   const exportRef = useRef(null);
+  const listFetchSeq = useRef(0);
+  const todayFetchSeq = useRef(0);
+  const metricsFetchSeq = useRef(0);
   const [attendanceList, setAttendanceList] = useState([]);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -47,63 +59,70 @@ function AttendanceComponent() {
   );
 
   const requiredHours = getRequiredHours(employeeData?.job_type);
+  const userId = employeeData?.supabase_user_id;
 
   const totalPages = Math.max(1, Math.ceil(totalRecord / recordsPerPage) || 1);
 
-  const getEmployeeDetail = async ({ silent = false } = {}) => {
-    if (!employeeData?.supabase_user_id) return;
-    const startOfToday = new Date(startDate);
-    startOfToday.setHours(0, 0, 0, 0);
+  const getEmployeeDetail = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!userId) return;
+      const requestId = ++listFetchSeq.current;
+      const startOfToday = new Date(startDate);
+      startOfToday.setHours(0, 0, 0, 0);
 
-    const endOfToday = new Date(endDate);
-    endOfToday.setHours(23, 59, 59, 999);
-    const start = (currentPage - 1) * recordsPerPage;
-    const end = start + recordsPerPage - 1;
-    if (!silent) setIsLoading(true);
-    const response = await fetch(
-      `/api/attendance/get-all?start=${start}&end=${end}&user_id=${employeeData?.supabase_user_id}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const endOfToday = new Date(endDate);
+      endOfToday.setHours(23, 59, 59, 999);
+      const start = (currentPage - 1) * recordsPerPage;
+      const end = start + recordsPerPage - 1;
+      if (!silent) setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/attendance/get-all?start=${start}&end=${end}&user_id=${userId}&startOfToday=${startOfToday}&endOfToday=${endOfToday}&startDate=${startDate}&endDate=${endDate}`,
+          NO_STORE_FETCH
+        );
+        const result = await response.json();
+        if (requestId !== listFetchSeq.current) return;
+        if (response.status === 200) {
+          const formattedData = result?.data?.data?.map((att) => ({
+            id: att?.id,
+            date: att?.checkin_time
+              ? moment(att?.checkin_time).format("YYYY-MM-DD")
+              : "",
+            checkIn: att?.checkin_time
+              ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
+              : "",
+            checkOut: att?.checkout_time
+              ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
+              : "",
+            hour: att?.total_hour,
+            rawCheckin: att?.checkin_time,
+            rawCheckout: att?.checkout_time,
+            earlyOut: att?.early_out === true || att?.early_out === "true",
+          }));
+          setAttendanceList(formattedData || []);
+          setTotalRecord(result?.data?.count || 0);
+        }
+      } catch (e) {
+        console.error("Failed to fetch attendance list:", e);
+      } finally {
+        if (requestId === listFetchSeq.current && !silent) {
+          setIsLoading(false);
+        }
       }
-    );
-    const result = await response.json();
-    if (response.status === 200) {
-      const formattedData = result?.data?.data?.map((att) => ({
-        id: att?.id,
-        date: att?.checkin_time
-          ? moment(att?.checkin_time).format("YYYY-MM-DD")
-          : "",
-        checkIn: att?.checkin_time
-          ? moment.utc(att?.checkin_time).local().format("hh:mm:ss A")
-          : "",
-        checkOut: att?.checkout_time
-          ? moment.utc(att?.checkout_time).local().format("hh:mm:ss A")
-          : "",
-        hour: att?.total_hour,
-        rawCheckin: att?.checkin_time,
-        rawCheckout: att?.checkout_time,
-        earlyOut: att?.early_out === true || att?.early_out === "true",
-      }));
-      if (!silent) setIsLoading(false);
-      setAttendanceList(formattedData || []);
-      setTotalRecord(result?.data?.count || 0);
-    } else if (!silent) {
-      setIsLoading(false);
-    }
-  };
+    },
+    [userId, startDate, endDate, currentPage, recordsPerPage]
+  );
 
-  const fetchTodaySession = async () => {
-    if (!employeeData?.supabase_user_id) return;
+  const fetchTodaySession = useCallback(async () => {
+    if (!userId) return;
+    const requestId = ++todayFetchSeq.current;
     const startOfToday = moment().startOf("day").toISOString();
     const endOfToday = moment().endOf("day").toISOString();
     try {
       // Fetch today's rows (no tiny range) and prefer an open session
       const response = await fetch(
         `/api/attendance/get-all?user_id=${encodeURIComponent(
-          employeeData.supabase_user_id
+          userId
         )}&startOfToday=${encodeURIComponent(
           startOfToday
         )}&endOfToday=${encodeURIComponent(
@@ -111,12 +130,10 @@ function AttendanceComponent() {
         )}&startDate=${encodeURIComponent(
           startOfToday
         )}&endDate=${encodeURIComponent(endOfToday)}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
+        NO_STORE_FETCH
       );
       const result = await response.json();
+      if (requestId !== todayFetchSeq.current) return;
       if (response.status === 200) {
         const rows = result?.data?.data || [];
         const openSession =
@@ -126,23 +143,20 @@ function AttendanceComponent() {
 
         setTodaySession((prev) => {
           // Don't wipe an optimistic / open check-in if the API is briefly empty
-          if (
-            !session &&
-            prev?.checkin_time &&
-            !prev?.checkout_time
-          ) {
+          if (!session && prev?.checkin_time && !prev?.checkout_time) {
             return prev;
           }
           return session;
         });
       }
     } catch (e) {
-      // ignore
+      console.error("Failed to fetch today's attendance session:", e);
     }
-  };
+  }, [userId]);
 
-  const fetchMonthMetrics = async () => {
-    if (!employeeData?.supabase_user_id) return;
+  const fetchMonthMetrics = useCallback(async () => {
+    if (!userId) return;
+    const requestId = ++metricsFetchSeq.current;
     const monthStart = moment().startOf("month").toDate();
     const monthEnd = moment().endOf("month").toDate();
     const startOfRange = new Date(monthStart);
@@ -152,13 +166,11 @@ function AttendanceComponent() {
 
     try {
       const response = await fetch(
-        `/api/attendance/get-all?user_id=${employeeData.supabase_user_id}&startOfToday=${startOfRange}&endOfToday=${endOfRange}&startDate=${monthStart}&endDate=${monthEnd}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
+        `/api/attendance/get-all?user_id=${userId}&startOfToday=${startOfRange}&endOfToday=${endOfRange}&startDate=${monthStart}&endDate=${monthEnd}`,
+        NO_STORE_FETCH
       );
       const result = await response.json();
+      if (requestId !== metricsFetchSeq.current) return;
       if (response.status === 200) {
         setMonthMetrics(
           computeMonthMetrics(
@@ -168,9 +180,15 @@ function AttendanceComponent() {
         );
       }
     } catch (e) {
-      // ignore
+      console.error("Failed to fetch month attendance metrics:", e);
     }
-  };
+  }, [userId, employeeData?.job_type]);
+
+  const refreshSilent = useCallback(() => {
+    getEmployeeDetail({ silent: true });
+    fetchTodaySession();
+    fetchMonthMetrics();
+  }, [getEmployeeDetail, fetchTodaySession, fetchMonthMetrics]);
 
   const refreshAfterPunch = async () => {
     await Promise.all([
@@ -186,34 +204,32 @@ function AttendanceComponent() {
       fetchTodaySession();
       fetchMonthMetrics();
     }
-  }, [currentPage, recordsPerPage, startDate, endDate, employeeData]);
+  }, [
+    currentPage,
+    recordsPerPage,
+    startDate,
+    endDate,
+    employeeData,
+    getEmployeeDetail,
+    fetchTodaySession,
+    fetchMonthMetrics,
+  ]);
 
   useEffect(() => {
-    if (!employeeData?.supabase_user_id) return;
+    if (!userId) return;
 
-    const refreshSilent = () => {
-      getEmployeeDetail({ silent: true });
-      fetchTodaySession();
-      fetchMonthMetrics();
-    };
-
-    const subscription = supabase
-      .channel("table-db-changes")
+    const channel = supabase
+      .channel(`attendance-changes-${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "attendance",
+          filter: `supabase_user_id=eq.${userId}`,
         },
-        (payload) => {
-          const uid = employeeData?.supabase_user_id;
-          if (
-            payload.new?.supabase_user_id === uid ||
-            payload.old?.supabase_user_id === uid
-          ) {
-            refreshSilent();
-          }
+        () => {
+          refreshSilent();
         }
       )
       .subscribe();
@@ -221,13 +237,33 @@ function AttendanceComponent() {
     const onPunch = () => {
       refreshSilent();
     };
+
+    const onResume = () => {
+      if (document.visibilityState === "hidden") return;
+      refreshSilent();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshSilent();
+      }
+    };
+
     window.addEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("online", onResume);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
       window.removeEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("online", onResume);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [employeeData?.supabase_user_id]);
+  }, [userId, refreshSilent]);
 
   useEffect(() => {
     const loginToast = Cookies.get("signin_toast");
@@ -554,6 +590,8 @@ function AttendanceComponent() {
     const diff = calculateTimeDifference(row.rawCheckin);
     return diff && diff !== "Invalid Date" ? diff : row.hour || "—";
   };
+
+  console.log("monthMetrics", monthMetrics);
 
   return (
     <div className={styles.page}>
