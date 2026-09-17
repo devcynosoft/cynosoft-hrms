@@ -23,6 +23,12 @@ import {
   ATTENDANCE_PERIODS,
   computeAttendanceTrend,
 } from "@/utils/attendanceDisplay";
+import {
+  ChartSkeleton,
+  MetricCardsSkeleton,
+  ProfileSkeleton,
+  SkeletonLine,
+} from "../skeletons";
 import styles from "./employeeDetails.module.css";
 
 ChartJS.register(
@@ -303,8 +309,40 @@ const EmployeeDetailsComponent = ({ empId }) => {
 
   if (isLoading) {
     return (
-      <div className={styles.page}>
-        <div className={styles.stateCard}>Loading employee analytics…</div>
+      <div className={styles.page} role="status" aria-busy="true">
+        <div className={styles.pageHeader}>
+          <div>
+            <SkeletonLine width="14rem" size="lg" />
+            <div style={{ marginTop: "0.5rem" }}>
+              <SkeletonLine width="24rem" size="sm" />
+            </div>
+          </div>
+        </div>
+        <section className={styles.profileCard}>
+          <ProfileSkeleton size="md" showMeta />
+          <div className={styles.profileMeta}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={`meta-skel-${i}`} className={styles.metaItem}>
+                <SkeletonLine width="40%" size="sm" />
+                <SkeletonLine width="70%" />
+              </div>
+            ))}
+          </div>
+        </section>
+        <MetricCardsSkeleton count={5} columnsClass="cols5" />
+        <section className={styles.chartCard}>
+          <SkeletonLine width="12rem" />
+          <div style={{ marginTop: "0.5rem", marginBottom: "1rem" }}>
+            <SkeletonLine width="22rem" size="sm" />
+          </div>
+          <ChartSkeleton />
+        </section>
+        <section className={styles.leaveSection}>
+          <SkeletonLine width="10rem" />
+          <div style={{ marginTop: "0.75rem" }}>
+            <MetricCardsSkeleton count={3} />
+          </div>
+        </section>
       </div>
     );
   }

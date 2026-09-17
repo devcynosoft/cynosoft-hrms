@@ -11,6 +11,11 @@ import { useEmployee } from "@/context/EmployeeContext";
 import ButtonLoader from "../ButtonLoader.jsx";
 import NameBadge from "../NameBadge.jsx";
 import moment from "moment";
+import {
+  SkeletonBone,
+  SkeletonLine,
+  TableSkeletonRows,
+} from "../skeletons";
 import styles from "./employee.module.css";
 
 const ROLE_OPTIONS = [
@@ -87,6 +92,8 @@ const EmployeeCreateComponent = ({ empId }) => {
   const [annualUsed, setAnnualUsed] = useState(0);
   const [sickUsed, setSickUsed] = useState(0);
   const [casualUsed, setCasualUsed] = useState(0);
+  const [balancesLoading, setBalancesLoading] = useState(Boolean(empId));
+  const [historyLoading, setHistoryLoading] = useState(Boolean(empId));
   const [createdAt, setCreatedAt] = useState(null);
   const [loadedSnapshot, setLoadedSnapshot] = useState(null);
   const [loadedJobStatus, setLoadedJobStatus] = useState(null);
@@ -149,79 +156,89 @@ const EmployeeCreateComponent = ({ empId }) => {
     };
 
     const getLeavesCount = async () => {
-      const response = await fetch(
-        `/api/leave/get-all?count=${"count"}&userId=${supaId}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-      const result = await response.json();
-
-      if (response?.status === 200) {
-        let annualLeavesUsed = 0;
-        let sickLeavesUsed = 0;
-        let casualLeavesUsed = 0;
-
-        const today = new Date();
-        const fiscalYearStart =
-          today.getMonth() + 1 >= 7
-            ? new Date(today.getFullYear(), 6, 1)
-            : new Date(today.getFullYear() - 1, 6, 1);
-        const fiscalYearEnd = new Date(
-          fiscalYearStart.getFullYear() + 1,
-          5,
-          30,
-          23,
-          59,
-          59,
-          999
-        );
-
-        result?.data?.data?.forEach((leave) => {
-          const leaveStart = new Date(leave.start_date);
-          const leaveEnd = new Date(leave.end_date);
-          const overlapsFiscalYear =
-            leaveStart <= fiscalYearEnd && leaveEnd >= fiscalYearStart;
-
-          if (overlapsFiscalYear) {
-            const multiplier =
-              leave.leave_type_duration === "Half Day"
-                ? 0.5
-                : leave.leave_type_duration === "Full Day"
-                  ? 1
-                  : 0;
-            const effectiveLeaveDays = leave.duration * multiplier;
-
-            if (leave.leave_type === "Annual") {
-              annualLeavesUsed += effectiveLeaveDays;
-            } else if (leave.leave_type === "Sick") {
-              sickLeavesUsed += effectiveLeaveDays;
-            } else if (leave.leave_type === "Casual") {
-              casualLeavesUsed += effectiveLeaveDays;
-            }
+      setBalancesLoading(true);
+      try {
+        const response = await fetch(
+          `/api/leave/get-all?count=${"count"}&userId=${supaId}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
           }
-        });
+        );
+        const result = await response.json();
 
-        setAnnualUsed(annualLeavesUsed);
-        setSickUsed(sickLeavesUsed);
-        setCasualUsed(casualLeavesUsed);
-      } else {
-        console.error("Error fetching leave data:", result?.error);
+        if (response?.status === 200) {
+          let annualLeavesUsed = 0;
+          let sickLeavesUsed = 0;
+          let casualLeavesUsed = 0;
+
+          const today = new Date();
+          const fiscalYearStart =
+            today.getMonth() + 1 >= 7
+              ? new Date(today.getFullYear(), 6, 1)
+              : new Date(today.getFullYear() - 1, 6, 1);
+          const fiscalYearEnd = new Date(
+            fiscalYearStart.getFullYear() + 1,
+            5,
+            30,
+            23,
+            59,
+            59,
+            999
+          );
+
+          result?.data?.data?.forEach((leave) => {
+            const leaveStart = new Date(leave.start_date);
+            const leaveEnd = new Date(leave.end_date);
+            const overlapsFiscalYear =
+              leaveStart <= fiscalYearEnd && leaveEnd >= fiscalYearStart;
+
+            if (overlapsFiscalYear) {
+              const multiplier =
+                leave.leave_type_duration === "Half Day"
+                  ? 0.5
+                  : leave.leave_type_duration === "Full Day"
+                    ? 1
+                    : 0;
+              const effectiveLeaveDays = leave.duration * multiplier;
+
+              if (leave.leave_type === "Annual") {
+                annualLeavesUsed += effectiveLeaveDays;
+              } else if (leave.leave_type === "Sick") {
+                sickLeavesUsed += effectiveLeaveDays;
+              } else if (leave.leave_type === "Casual") {
+                casualLeavesUsed += effectiveLeaveDays;
+              }
+            }
+          });
+
+          setAnnualUsed(annualLeavesUsed);
+          setSickUsed(sickLeavesUsed);
+          setCasualUsed(casualLeavesUsed);
+        } else {
+          console.error("Error fetching leave data:", result?.error);
+        }
+      } finally {
+        setBalancesLoading(false);
       }
     };
 
     const getLeaveHistory = async () => {
-      const response = await fetch(
-        `/api/leave/get-all?userId=${supaId}&start=0&end=4`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
+      setHistoryLoading(true);
+      try {
+        const response = await fetch(
+          `/api/leave/get-all?userId=${supaId}&start=0&end=4`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        const result = await response.json();
+        if (response?.status === 200) {
+          setLeaveHistory(result?.data?.data || []);
         }
-      );
-      const result = await response.json();
-      if (response?.status === 200) {
-        setLeaveHistory(result?.data?.data || []);
+      } finally {
+        setHistoryLoading(false);
       }
     };
 
@@ -231,6 +248,9 @@ const EmployeeCreateComponent = ({ empId }) => {
     if (supaId) {
       getLeavesCount();
       getLeaveHistory();
+    } else if (!empId) {
+      setBalancesLoading(false);
+      setHistoryLoading(false);
     }
   }, [empId, supaId, reset]);
 
@@ -936,7 +956,31 @@ const EmployeeCreateComponent = ({ empId }) => {
                 </Link>
               </div>
               <div className={styles.tableWrap}>
-                {leaveHistory.length === 0 ? (
+                {historyLoading ? (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Leave Type</th>
+                        <th>Duration</th>
+                        <th>Dates</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <TableSkeletonRows
+                        rows={3}
+                        columns={[
+                          { type: "badge" },
+                          { type: "text", width: "45%" },
+                          { type: "text", width: "60%" },
+                          { type: "badge" },
+                          { type: "actions", count: 1 },
+                        ]}
+                      />
+                    </tbody>
+                  </table>
+                ) : leaveHistory.length === 0 ? (
                   <div className={styles.emptyTable}>No leave records yet.</div>
                 ) : (
                   <table className={styles.table}>
@@ -1157,6 +1201,19 @@ const EmployeeCreateComponent = ({ empId }) => {
                 </div>
 
                 <div className={styles.balanceList}>
+                  {balancesLoading ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={`bal-skel-${i}`} className={styles.balanceCard}>
+                          <SkeletonLine width="40%" size="sm" />
+                          <SkeletonLine width="55%" size="lg" />
+                          <SkeletonBone style={{ height: "0.375rem", width: "100%", marginTop: "0.5rem" }} />
+                          <SkeletonLine width="65%" size="sm" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                  <>
                   <div className={styles.balanceCard}>
                     <div className={styles.balanceHeader}>
                       <div className={styles.balanceLabel}>
@@ -1319,6 +1376,8 @@ const EmployeeCreateComponent = ({ empId }) => {
                       </p>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
 
                 <Link

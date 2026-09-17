@@ -13,6 +13,7 @@ import moment from "moment";
 import ButtonLoader from "../ButtonLoader.jsx";
 import UserActions from "../header/UserActions";
 import useIsMobile from "@/utils/useIsMobile";
+import { ProfileSkeleton, SkeletonBone } from "../skeletons";
 import {
   ATTENDANCE_PUNCH_EVENT,
   notifyAttendancePunch,
@@ -31,7 +32,8 @@ const SidebarComponent = () => {
   const fileInputRef = useRef(null);
   const todayFetchSeq = useRef(0);
   const pathname = usePathname();
-  const { logout, employeeData, setEmployeeData } = useEmployee();
+  const { logout, employeeData, setEmployeeData, isEmployeeLoading } =
+    useEmployee();
   const isMobile = useIsMobile();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -107,10 +109,18 @@ const SidebarComponent = () => {
     if (userId) {
       fetchTodayCheckin();
     }
-  }, [userId, isLoading, checkoutLoading, fetchTodayCheckin]);
+  }, [userId, fetchTodayCheckin]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) return undefined;
+
+    let silentTimer = null;
+    const runSilent = () => {
+      clearTimeout(silentTimer);
+      silentTimer = setTimeout(() => {
+        fetchTodayCheckin();
+      }, 300);
+    };
 
     const channel = supabase
       .channel(`sidebar-attendance-changes-${userId}`)
@@ -122,36 +132,31 @@ const SidebarComponent = () => {
           table: "attendance",
           filter: `supabase_user_id=eq.${userId}`,
         },
-        () => {
-          fetchTodayCheckin();
-        }
+        runSilent
       )
       .subscribe();
 
-    const onPunch = () => {
-      fetchTodayCheckin();
-    };
-
     const onResume = () => {
       if (document.visibilityState === "hidden") return;
-      fetchTodayCheckin();
+      runSilent();
     };
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        fetchTodayCheckin();
+        runSilent();
       }
     };
 
-    window.addEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+    window.addEventListener(ATTENDANCE_PUNCH_EVENT, runSilent);
     window.addEventListener("focus", onResume);
     window.addEventListener("pageshow", onResume);
     window.addEventListener("online", onResume);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      clearTimeout(silentTimer);
       supabase.removeChannel(channel);
-      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, runSilent);
       window.removeEventListener("focus", onResume);
       window.removeEventListener("pageshow", onResume);
       window.removeEventListener("online", onResume);
@@ -419,7 +424,11 @@ const SidebarComponent = () => {
         </button>
         <span className={styles.mobileTitle}>{getHeading()}</span>
         {isMobile ? (
-          <UserActions empData={employeeData} variant="mobile" />
+          <UserActions
+            empData={employeeData}
+            isEmployeeLoading={isEmployeeLoading}
+            variant="mobile"
+          />
         ) : null}
       </div>
 
@@ -459,56 +468,64 @@ const SidebarComponent = () => {
 
           <div className={styles.profileCard}>
             <div className={styles.profileRow}>
-              <div className={styles.avatarWrap}>
-                {employeeData?.pic ? (
-                  <Image
-                    src={employeeData.pic}
-                    alt="Profile"
-                    width={40}
-                    height={40}
-                    className={styles.avatar}
-                    priority
-                  />
-                ) : (
-                  <div className={styles.avatarFallback}>
-                    {employeeData?.name ? (
-                      <NameBadge
-                        name={employeeData.name}
-                        fontSize={14}
-                        height={40}
+              {isEmployeeLoading && !employeeData ? (
+                <ProfileSkeleton size="sm" showMeta />
+              ) : (
+                <>
+                  <div className={styles.avatarWrap}>
+                    {employeeData?.pic ? (
+                      <Image
+                        src={employeeData.pic}
+                        alt="Profile"
                         width={40}
+                        height={40}
+                        className={styles.avatar}
+                        priority
                       />
                     ) : (
-                      <span className="material-symbols-outlined">person</span>
+                      <div className={styles.avatarFallback}>
+                        {employeeData?.name ? (
+                          <NameBadge
+                            name={employeeData.name}
+                            fontSize={14}
+                            height={40}
+                            width={40}
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined">
+                            person
+                          </span>
+                        )}
+                      </div>
                     )}
+                    <span className={styles.onlineDot} />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={uploadImage}
+                      className={styles.hiddenInput}
+                    />
+                    <button
+                      type="button"
+                      className={styles.avatarUploadBtn}
+                      onClick={handleUploadClick}
+                      disabled={loading || isEmployeeLoading}
+                      aria-label="Upload photo"
+                    >
+                      {loading ? <ButtonLoader /> : <Upload size={14} />}
+                    </button>
                   </div>
-                )}
-                <span className={styles.onlineDot} />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={uploadImage}
-                  className={styles.hiddenInput}
-                />
-                <button
-                  type="button"
-                  className={styles.avatarUploadBtn}
-                  onClick={handleUploadClick}
-                  disabled={loading}
-                  aria-label="Upload photo"
-                >
-                  {loading ? <ButtonLoader /> : <Upload size={14} />}
-                </button>
-              </div>
-              <div className={styles.profileInfo}>
-                <span className={styles.profileName}>
-                  {employeeData?.name || "Employee"}
-                </span>
-                <span className={styles.profileRole}>
-                  {employeeData?.role || "Employee"}
-                </span>
-              </div>
+                  <div className={styles.profileInfo}>
+                    <span className={styles.profileName}>
+                      {employeeData?.name || "Employee"}
+                    </span>
+                    <span className={styles.profileRole}>
+                      {employeeData?.role || "Employee"}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* {checkedInTime && (
@@ -519,6 +536,13 @@ const SidebarComponent = () => {
             )} */}
 
             <div className={styles.punchGrid}>
+              {isEmployeeLoading && !employeeData ? (
+                <>
+                  <SkeletonBone style={{ height: "2.5rem", width: "100%" }} />
+                  <SkeletonBone style={{ height: "2.5rem", width: "100%" }} />
+                </>
+              ) : (
+                <>
               <button
                 type="button"
                 className={`${styles.punchBtn} ${styles.checkInBtn}`}
@@ -568,6 +592,8 @@ const SidebarComponent = () => {
                   </>
                 )}
               </button>
+                </>
+              )}
             </div>
           </div>
 

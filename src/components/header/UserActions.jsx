@@ -6,13 +6,14 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { supabase } from "@/utils/supabaseClient";
 import NameBadge from "../NameBadge";
+import { SkeletonCircle } from "../skeletons";
 import styles from "./userActions.module.css";
 
 /**
  * Reusable header actions: notifications dropdown + profile avatar.
  * @param {"default"|"mobile"} variant - mobile uses light-on-dark styling for the top bar
  */
-const UserActions = ({ empData, variant = "default" }) => {
+const UserActions = ({ empData, isEmployeeLoading = false, variant = "default" }) => {
   const router = useRouter();
   const dropdownRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -190,10 +191,12 @@ const UserActions = ({ empData, variant = "default" }) => {
         }`}
         onClick={handleAvatarClick}
         aria-label="Open profile"
-        disabled={!empData?.id}
+        disabled={!empData?.id || isEmployeeLoading}
       >
         <span className={styles.avatar}>
-          {empData?.pic ? (
+          {isEmployeeLoading ? (
+            <SkeletonCircle size={32} />
+          ) : empData?.pic ? (
             <Image
               src={empData.pic}
               alt="Profile"

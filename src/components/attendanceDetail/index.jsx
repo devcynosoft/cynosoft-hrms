@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import ButtonLoader from "../ButtonLoader.jsx";
 import { toast } from "react-toastify";
 import { generateAttendancePdf } from "@/utils/pdfGenerator";
+import { TableSkeletonRows } from "../skeletons";
 
 const AttendanceDetailComponent = () => {
   const router = useRouter();
@@ -18,7 +19,7 @@ const AttendanceDetailComponent = () => {
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -227,8 +228,6 @@ const AttendanceDetailComponent = () => {
     return pages;
   })();
 
-  const tableBusy = isLoading || deleteLoading;
-
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
@@ -353,12 +352,19 @@ const AttendanceDetailComponent = () => {
               </tr>
             </thead>
             <tbody>
-              {tableBusy ? (
-                <tr>
-                  <td colSpan={6} className={styles.loadingRow}>
-                    Loading attendance records…
-                  </td>
-                </tr>
+              {isLoading ? (
+                <TableSkeletonRows
+                  rows={recordsPerPage}
+                  columns={[
+                    { type: "text", width: "55%" },
+                    { type: "text", width: "70%" },
+                    { type: "text", width: "50%" },
+                    { type: "text", width: "50%" },
+                    { type: "text", width: "45%" },
+                    { type: "actions", count: 2 },
+                  ]}
+                  altRowClassName={styles.rowAlt}
+                />
               ) : employeeData?.length > 0 ? (
                 employeeData.map((row, index) => (
                   <tr
@@ -416,11 +422,17 @@ const AttendanceDetailComponent = () => {
 
         <div className={styles.paginationBar}>
           <span className={styles.paginationInfo}>
-            Showing{" "}
-            <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
-            <span className={styles.paginationBold}>{showingTo}</span> of{" "}
-            <span className={styles.paginationBold}>{totalRecord}</span>{" "}
-            entries
+            {isLoading && totalRecord === 0 ? (
+              "Loading entries…"
+            ) : (
+              <>
+                Showing{" "}
+                <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
+                <span className={styles.paginationBold}>{showingTo}</span> of{" "}
+                <span className={styles.paginationBold}>{totalRecord}</span>{" "}
+                entries
+              </>
+            )}
           </span>
           <div className={styles.pageBtns}>
             <button

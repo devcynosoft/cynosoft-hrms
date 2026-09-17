@@ -6,7 +6,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-datepicker/dist/react-datepicker.css";
 import "react-toastify/dist/ReactToastify.css";
 import "react-time-picker/dist/TimePicker.css";
-import React from "react";
+import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { EmployeeProvider, useEmployee } from "@/context/EmployeeContext";
 import { ToastContainer } from "react-toastify";
@@ -14,6 +14,9 @@ import HeaderComponent from "@/components/header";
 import SidebarComponent from "@/components/sidebar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import shell from "./hrms-shell.module.css";
+
+const MATERIAL_ICONS_HREF =
+  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,6 +30,11 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+function markMaterialIconsReady() {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.add("material-icons-ready");
+}
+
 export default function RootLayout({ children }) {
   const pathname = usePathname();
 
@@ -36,13 +44,44 @@ export default function RootLayout({ children }) {
     pathname.includes(route)
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled) markMaterialIconsReady();
+    }, 2000);
+
+    const ready = async () => {
+      try {
+        if (document.fonts?.load) {
+          await document.fonts.load('24px "Material Symbols Outlined"');
+        }
+        if (document.fonts?.ready) {
+          await document.fonts.ready;
+        }
+      } catch {
+        // Fall through to mark ready anyway
+      }
+      if (!cancelled) markMaterialIconsReady();
+    };
+
+    ready();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, []);
+
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-          rel="stylesheet"
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
         />
+        <link rel="preload" as="style" href={MATERIAL_ICONS_HREF} />
+        <link href={MATERIAL_ICONS_HREF} rel="stylesheet" />
         <link rel="icon" href="/favicon/favicon.ico" type="image/png" />
         <link
           rel="stylesheet"

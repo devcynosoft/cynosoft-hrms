@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import moment from "moment";
 import styles from "./employeeList.module.css";
+import { TableSkeletonRows } from "../skeletons";
 
 const EmployeeListComponent = () => {
   const router = useRouter();
@@ -14,7 +15,7 @@ const EmployeeListComponent = () => {
   const [totalRecord, setTotalRecord] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -201,11 +202,19 @@ const EmployeeListComponent = () => {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={7} className={styles.loadingRow}>
-                    Loading employees…
-                  </td>
-                </tr>
+                <TableSkeletonRows
+                  rows={recordsPerPage}
+                  columns={[
+                    { type: "avatar" },
+                    { type: "text", width: "75%" },
+                    { type: "badge", width: "4rem" },
+                    { type: "text", width: "60%" },
+                    { type: "text", width: "55%" },
+                    { type: "badge", width: "4.5rem" },
+                    { type: "actions", count: 2 },
+                  ]}
+                  altRowClassName={styles.rowAlt}
+                />
               ) : employeeData?.length > 0 ? (
                 employeeData.map((row, index) => (
                   <tr
@@ -289,11 +298,17 @@ const EmployeeListComponent = () => {
 
         <div className={styles.paginationBar}>
           <span className={styles.paginationInfo}>
-            Showing{" "}
-            <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
-            <span className={styles.paginationBold}>{showingTo}</span> of{" "}
-            <span className={styles.paginationBold}>{totalRecord}</span>{" "}
-            entries
+            {isLoading && totalRecord === 0 ? (
+              "Loading entries…"
+            ) : (
+              <>
+                Showing{" "}
+                <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
+                <span className={styles.paginationBold}>{showingTo}</span> of{" "}
+                <span className={styles.paginationBold}>{totalRecord}</span>{" "}
+                entries
+              </>
+            )}
           </span>
           <div className={styles.pageBtns}>
             <button

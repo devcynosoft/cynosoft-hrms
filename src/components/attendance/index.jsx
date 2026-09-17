@@ -25,6 +25,10 @@ import {
   ATTENDANCE_PUNCH_EVENT,
   notifyAttendancePunch,
 } from "@/utils/attendancePunchEvents";
+import {
+  MetricCardsSkeleton,
+  TableSkeletonRows,
+} from "../skeletons";
 
 const NO_STORE_FETCH = {
   method: "GET",
@@ -36,11 +40,15 @@ const NO_STORE_FETCH = {
 };
 
 function AttendanceComponent() {
-  const { employeeData, logout } = useEmployee();
+  const { employeeData, logout, isEmployeeLoading } = useEmployee();
   const exportRef = useRef(null);
   const listFetchSeq = useRef(0);
   const todayFetchSeq = useRef(0);
   const metricsFetchSeq = useRef(0);
+  // Only non-silent loads own these; silent refreshes never touch them.
+  const listLoadingSeq = useRef(0);
+  const todayLoadingSeq = useRef(0);
+  const metricsLoadingSeq = useRef(0);
   const [attendanceList, setAttendanceList] = useState([]);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -48,12 +56,14 @@ function AttendanceComponent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [elapsed, setElapsed] = useState("");
   const [todaySession, setTodaySession] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const [monthMetrics, setMonthMetrics] = useState(() =>
     computeMonthMetrics([])
   );
@@ -65,8 +75,12 @@ function AttendanceComponent() {
 
   const getEmployeeDetail = useCallback(
     async ({ silent = false } = {}) => {
-      if (!userId) return;
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
       const requestId = ++listFetchSeq.current;
+      const loadingId = silent ? null : ++listLoadingSeq.current;
       const startOfToday = new Date(startDate);
       startOfToday.setHours(0, 0, 0, 0);
 
@@ -105,7 +119,7 @@ function AttendanceComponent() {
       } catch (e) {
         console.error("Failed to fetch attendance list:", e);
       } finally {
-        if (requestId === listFetchSeq.current && !silent) {
+        if (loadingId != null && loadingId === listLoadingSeq.current) {
           setIsLoading(false);
         }
       }
@@ -113,13 +127,17 @@ function AttendanceComponent() {
     [userId, startDate, endDate, currentPage, recordsPerPage]
   );
 
-  const fetchTodaySession = useCallback(async () => {
-    if (!userId) return;
+  const fetchTodaySession = useCallback(async ({ silent = false } = {}) => {
+    if (!userId) {
+      setSessionLoading(false);
+      return;
+    }
     const requestId = ++todayFetchSeq.current;
+    const loadingId = silent ? null : ++todayLoadingSeq.current;
+    if (!silent) setSessionLoading(true);
     const startOfToday = moment().startOf("day").toISOString();
     const endOfToday = moment().endOf("day").toISOString();
     try {
-      // Fetch today's rows (no tiny range) and prefer an open session
       const response = await fetch(
         `/api/attendance/get-all?user_id=${encodeURIComponent(
           userId
@@ -142,7 +160,6 @@ function AttendanceComponent() {
         const session = openSession || latest;
 
         setTodaySession((prev) => {
-          // Don't wipe an optimistic / open check-in if the API is briefly empty
           if (!session && prev?.checkin_time && !prev?.checkout_time) {
             return prev;
           }
@@ -151,12 +168,21 @@ function AttendanceComponent() {
       }
     } catch (e) {
       console.error("Failed to fetch today's attendance session:", e);
+    } finally {
+      if (loadingId != null && loadingId === todayLoadingSeq.current) {
+        setSessionLoading(false);
+      }
     }
   }, [userId]);
 
-  const fetchMonthMetrics = useCallback(async () => {
-    if (!userId) return;
+  const fetchMonthMetrics = useCallback(async ({ silent = false } = {}) => {
+    if (!userId) {
+      setMetricsLoading(false);
+      return;
+    }
     const requestId = ++metricsFetchSeq.current;
+    const loadingId = silent ? null : ++metricsLoadingSeq.current;
+    if (!silent) setMetricsLoading(true);
     const monthStart = moment().startOf("month").toDate();
     const monthEnd = moment().endOf("month").toDate();
     const startOfRange = new Date(monthStart);
@@ -181,42 +207,64 @@ function AttendanceComponent() {
       }
     } catch (e) {
       console.error("Failed to fetch month attendance metrics:", e);
+    } finally {
+      if (loadingId != null && loadingId === metricsLoadingSeq.current) {
+        setMetricsLoading(false);
+      }
     }
   }, [userId, employeeData?.job_type]);
 
-  const refreshSilent = useCallback(() => {
-    getEmployeeDetail({ silent: true });
-    fetchTodaySession();
-    fetchMonthMetrics();
-  }, [getEmployeeDetail, fetchTodaySession, fetchMonthMetrics]);
+  const fetchFnsRef = useRef({});
+  fetchFnsRef.current = {
+    getEmployeeDetail,
+    fetchTodaySession,
+    fetchMonthMetrics,
+  };
 
   const refreshAfterPunch = async () => {
     await Promise.all([
-      fetchTodaySession(),
+      fetchTodaySession({ silent: true }),
       getEmployeeDetail({ silent: true }),
-      fetchMonthMetrics(),
+      fetchMonthMetrics({ silent: true }),
     ]);
   };
 
+  // Intentionally omit fetch fn identities — calling via ref avoids effect loops
+  // when useCallback deps churn and re-trigger non-silent loads (stuck shimmer).
   useEffect(() => {
-    if (employeeData) {
-      getEmployeeDetail();
-      fetchTodaySession();
-      fetchMonthMetrics();
+    if (employeeData?.supabase_user_id) {
+      fetchFnsRef.current.getEmployeeDetail();
+      fetchFnsRef.current.fetchTodaySession();
+      fetchFnsRef.current.fetchMonthMetrics();
+      return;
+    }
+    if (!isEmployeeLoading) {
+      setIsLoading(false);
+      setSessionLoading(false);
+      setMetricsLoading(false);
     }
   }, [
     currentPage,
     recordsPerPage,
     startDate,
     endDate,
-    employeeData,
-    getEmployeeDetail,
-    fetchTodaySession,
-    fetchMonthMetrics,
+    employeeData?.supabase_user_id,
+    employeeData?.job_type,
+    isEmployeeLoading,
   ]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) return undefined;
+
+    let silentTimer = null;
+    const runSilent = () => {
+      clearTimeout(silentTimer);
+      silentTimer = setTimeout(() => {
+        fetchFnsRef.current.getEmployeeDetail({ silent: true });
+        fetchFnsRef.current.fetchTodaySession({ silent: true });
+        fetchFnsRef.current.fetchMonthMetrics({ silent: true });
+      }, 300);
+    };
 
     const channel = supabase
       .channel(`attendance-changes-${userId}`)
@@ -228,42 +276,37 @@ function AttendanceComponent() {
           table: "attendance",
           filter: `supabase_user_id=eq.${userId}`,
         },
-        () => {
-          refreshSilent();
-        }
+        runSilent
       )
       .subscribe();
 
-    const onPunch = () => {
-      refreshSilent();
-    };
-
     const onResume = () => {
       if (document.visibilityState === "hidden") return;
-      refreshSilent();
+      runSilent();
     };
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        refreshSilent();
+        runSilent();
       }
     };
 
-    window.addEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+    window.addEventListener(ATTENDANCE_PUNCH_EVENT, runSilent);
     window.addEventListener("focus", onResume);
     window.addEventListener("pageshow", onResume);
     window.addEventListener("online", onResume);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      clearTimeout(silentTimer);
       supabase.removeChannel(channel);
-      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, onPunch);
+      window.removeEventListener(ATTENDANCE_PUNCH_EVENT, runSilent);
       window.removeEventListener("focus", onResume);
       window.removeEventListener("pageshow", onResume);
       window.removeEventListener("online", onResume);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [userId, refreshSilent]);
+  }, [userId]);
 
   useEffect(() => {
     const loginToast = Cookies.get("signin_toast");
@@ -591,8 +634,6 @@ function AttendanceComponent() {
     return diff && diff !== "Invalid Date" ? diff : row.hour || "—";
   };
 
-  console.log("monthMetrics", monthMetrics);
-
   return (
     <div className={styles.page}>
       <div className={styles.mobilePunch}>
@@ -801,6 +842,9 @@ function AttendanceComponent() {
         </div>
       </div>
 
+      {metricsLoading || sessionLoading ? (
+        <MetricCardsSkeleton count={4} columnsClass="cols4" />
+      ) : (
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>
           <div className={styles.metricTop}>
@@ -971,6 +1015,7 @@ function AttendanceComponent() {
           </div>
         </div>
       </div>
+      )}
 
       <div className={styles.filtersCard}>
         <div className={styles.dateFilters}>
@@ -1071,11 +1116,16 @@ function AttendanceComponent() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyRow}>
-                    Data Loading...
-                  </td>
-                </tr>
+                <TableSkeletonRows
+                  rows={recordsPerPage}
+                  columns={[
+                    { type: "text", width: "70%" },
+                    { type: "text", width: "50%" },
+                    { type: "text", width: "50%" },
+                    { type: "text", width: "65%" },
+                    { type: "badge" },
+                  ]}
+                />
               ) : attendanceList?.length > 0 ? (
                 attendanceList.map((row) => {
                   const active = isActiveSession(row);
@@ -1269,7 +1319,9 @@ function AttendanceComponent() {
             </select>
             <span>
               records out of{" "}
-              <span className={styles.totalBold}>{totalRecord}</span>
+              <span className={styles.totalBold}>
+                {isLoading && totalRecord === 0 ? "—" : totalRecord}
+              </span>
             </span>
           </div>
           <div className={styles.pageBtns}>

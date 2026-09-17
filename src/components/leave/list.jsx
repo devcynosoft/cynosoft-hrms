@@ -7,6 +7,7 @@ import { useEmployee } from "@/context/EmployeeContext";
 import moment from "moment";
 import { toast } from "react-toastify";
 import styles from "./leaveList.module.css";
+import { MetricCardsSkeleton, TableSkeletonRows } from "../skeletons";
 
 const getTypeDotClass = (type) => {
   if (type === "Sick") return styles.dotSick;
@@ -32,7 +33,7 @@ const getInitials = (name) => {
 const LeaveListComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { employeeData } = useEmployee();
+  const { employeeData, isEmployeeLoading } = useEmployee();
   const [name, setName] = useState("");
   const [debouncedName, setDebouncedName] = useState(name);
   const [leaveType, setLeaveType] = useState(null);
@@ -48,7 +49,8 @@ const LeaveListComponent = () => {
   const [annualUsed, setAnnualUsed] = useState(0);
   const [sickUsed, setSickUsed] = useState(0);
   const [casualUsed, setCasualUsed] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const [autoOpenedLeaveId, setAutoOpenedLeaveId] = useState(null);
 
   const isAdmin = employeeData?.role === "admin";
@@ -159,9 +161,12 @@ const LeaveListComponent = () => {
     };
     if (employeeData) {
       getLeavesData();
+    } else if (!isEmployeeLoading) {
+      setIsLoading(false);
     }
   }, [
     employeeData,
+    isEmployeeLoading,
     currentPage,
     recordsPerPage,
     debouncedName,
@@ -214,76 +219,82 @@ const LeaveListComponent = () => {
 
   useEffect(() => {
     const getLeavesCount = async () => {
-      const response = await fetch(
-        `/api/leave/get-all?count=${"count"}&userId=${
-          employeeData?.supabase_user_id
-        }`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const result = await response.json();
-
-      if (response?.status === 200) {
-        let annualLeavesUsed = 0;
-        let sickLeavesUsed = 0;
-        let casualLeavesUsed = 0;
-
-        const today = new Date();
-        const fiscalYearStart =
-          today.getMonth() + 1 >= 7
-            ? new Date(today.getFullYear(), 6, 1)
-            : new Date(today.getFullYear() - 1, 6, 1);
-        const fiscalYearEnd = new Date(
-          fiscalYearStart.getFullYear() + 1,
-          5,
-          30,
-          23,
-          59,
-          59,
-          999
+      setMetricsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/leave/get-all?count=${"count"}&userId=${
+            employeeData?.supabase_user_id
+          }`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
         );
 
-        result?.data?.data?.forEach((leave) => {
-          const leaveStart = new Date(leave.start_date);
-          const leaveEnd = new Date(leave.end_date);
+        const result = await response.json();
 
-          const overlapsFiscalYear =
-            leaveStart <= fiscalYearEnd && leaveEnd >= fiscalYearStart;
+        if (response?.status === 200) {
+          let annualLeavesUsed = 0;
+          let sickLeavesUsed = 0;
+          let casualLeavesUsed = 0;
 
-          if (overlapsFiscalYear) {
-            const multiplier =
-              leave.leave_type_duration === "Half Day"
-                ? 0.5
-                : leave.leave_type_duration === "Full Day"
-                ? 1
-                : 0;
+          const today = new Date();
+          const fiscalYearStart =
+            today.getMonth() + 1 >= 7
+              ? new Date(today.getFullYear(), 6, 1)
+              : new Date(today.getFullYear() - 1, 6, 1);
+          const fiscalYearEnd = new Date(
+            fiscalYearStart.getFullYear() + 1,
+            5,
+            30,
+            23,
+            59,
+            59,
+            999
+          );
 
-            const effectiveLeaveDays = leave.duration * multiplier;
+          result?.data?.data?.forEach((leave) => {
+            const leaveStart = new Date(leave.start_date);
+            const leaveEnd = new Date(leave.end_date);
 
-            if (leave.leave_type === "Annual") {
-              annualLeavesUsed += effectiveLeaveDays;
-            } else if (leave.leave_type === "Sick") {
-              sickLeavesUsed += effectiveLeaveDays;
-            } else if (leave.leave_type === "Casual") {
-              casualLeavesUsed += effectiveLeaveDays;
+            const overlapsFiscalYear =
+              leaveStart <= fiscalYearEnd && leaveEnd >= fiscalYearStart;
+
+            if (overlapsFiscalYear) {
+              const multiplier =
+                leave.leave_type_duration === "Half Day"
+                  ? 0.5
+                  : leave.leave_type_duration === "Full Day"
+                  ? 1
+                  : 0;
+
+              const effectiveLeaveDays = leave.duration * multiplier;
+
+              if (leave.leave_type === "Annual") {
+                annualLeavesUsed += effectiveLeaveDays;
+              } else if (leave.leave_type === "Sick") {
+                sickLeavesUsed += effectiveLeaveDays;
+              } else if (leave.leave_type === "Casual") {
+                casualLeavesUsed += effectiveLeaveDays;
+              }
             }
-          }
-        });
+          });
 
-        setAnnualUsed(annualLeavesUsed);
-        setSickUsed(sickLeavesUsed);
-        setCasualUsed(casualLeavesUsed);
-      } else {
-        console.error("Error fetching leave data:", result?.error);
+          setAnnualUsed(annualLeavesUsed);
+          setSickUsed(sickLeavesUsed);
+          setCasualUsed(casualLeavesUsed);
+        } else {
+          console.error("Error fetching leave data:", result?.error);
+        }
+      } finally {
+        setMetricsLoading(false);
       }
     };
     if (employeeData) getLeavesCount();
-  }, [employeeData]);
+    else if (!isEmployeeLoading) setMetricsLoading(false);
+  }, [employeeData, isEmployeeLoading]);
 
   useEffect(() => {
     if (!modalVisible) return;
@@ -442,6 +453,9 @@ const LeaveListComponent = () => {
         </div>
       </div>
 
+      {metricsLoading ? (
+        <MetricCardsSkeleton count={4} columnsClass="cols4" />
+      ) : (
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>
           <div className={styles.metricTop}>
@@ -552,6 +566,7 @@ const LeaveListComponent = () => {
           </div>
         </div>
       </div>
+      )}
 
       <div className={styles.tableCard}>
         <div className={styles.filterBar}>
@@ -660,14 +675,34 @@ const LeaveListComponent = () => {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td
-                    colSpan={isAdmin ? 9 : 8}
-                    className={styles.loadingRow}
-                  >
-                    Loading leave records…
-                  </td>
-                </tr>
+                <TableSkeletonRows
+                  rows={recordsPerPage}
+                  columns={
+                    isAdmin
+                      ? [
+                          { type: "text", width: "70%" },
+                          { type: "text", width: "55%" },
+                          { type: "text", width: "50%" },
+                          { type: "text", width: "50%" },
+                          { type: "badge" },
+                          { type: "text", width: "40%" },
+                          { type: "text", width: "30%" },
+                          { type: "badge" },
+                          { type: "actions", count: 1 },
+                        ]
+                      : [
+                          { type: "text", width: "55%" },
+                          { type: "text", width: "50%" },
+                          { type: "text", width: "50%" },
+                          { type: "badge" },
+                          { type: "text", width: "40%" },
+                          { type: "text", width: "30%" },
+                          { type: "badge" },
+                          { type: "actions", count: 1 },
+                        ]
+                  }
+                  altRowClassName={styles.rowAlt}
+                />
               ) : leavesData?.length > 0 ? (
                 leavesData.map((leave, index) => (
                   <tr
@@ -745,11 +780,17 @@ const LeaveListComponent = () => {
 
         <div className={styles.paginationBar}>
           <span className={styles.paginationInfo}>
-            Showing{" "}
-            <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
-            <span className={styles.paginationBold}>{showingTo}</span> of{" "}
-            <span className={styles.paginationBold}>{totalRecord}</span>{" "}
-            entries
+            {isLoading && totalRecord === 0 ? (
+              "Loading entries…"
+            ) : (
+              <>
+                Showing{" "}
+                <span className={styles.paginationBold}>{showingFrom}</span> to{" "}
+                <span className={styles.paginationBold}>{showingTo}</span> of{" "}
+                <span className={styles.paginationBold}>{totalRecord}</span>{" "}
+                entries
+              </>
+            )}
           </span>
           <div className={styles.pageBtns}>
             <button

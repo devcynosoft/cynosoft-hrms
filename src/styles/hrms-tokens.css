@@ -76,4 +76,16 @@
   direction: ltr;
   -webkit-font-smoothing: antialiased;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  /* Hide ligature text (e.g. "calendar_month") until the icon font is ready */
+  visibility: hidden;
+}
+
+html.material-icons-ready .material-symbols-outlined {
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.material-icons-ready .material-symbols-outlined {
+    visibility: visible;
+  }
 }

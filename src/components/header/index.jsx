@@ -4,14 +4,27 @@ import styles from "./header.module.css";
 import moment from "moment";
 import UserActions from "./UserActions";
 import useIsMobile from "@/utils/useIsMobile";
+import { StatusPillSkeleton } from "../skeletons";
 
 const HeaderComponent = ({ empData }) => {
   const isMobile = useIsMobile();
-  const [now, setNow] = useState(moment());
+  const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState(null);
   const [onDuty, setOnDuty] = useState(false);
+  const [dutyLoading, setDutyLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+    setNow(moment());
+  }, []);
 
   const fetchOnDuty = async () => {
-    if (!empData?.supabase_user_id) return;
+    if (!empData?.supabase_user_id) {
+      setOnDuty(false);
+      setDutyLoading(false);
+      return;
+    }
+    setDutyLoading(true);
     const startOfToday = moment().startOf("day").toDate();
     const endOfToday = moment().endOf("day").toDate();
     try {
@@ -29,6 +42,8 @@ const HeaderComponent = ({ empData }) => {
       }
     } catch (e) {
       // ignore
+    } finally {
+      setDutyLoading(false);
     }
   };
 
@@ -37,11 +52,13 @@ const HeaderComponent = ({ empData }) => {
   }, [empData?.supabase_user_id]);
 
   useEffect(() => {
+    if (!mounted) return undefined;
     const timer = setInterval(() => setNow(moment()), 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [mounted]);
 
-  if (isMobile) {
+  // Avoid SSR/client mismatch from useIsMobile (false on server, true on phone)
+  if (!mounted || isMobile) {
     return null;
   }
 
@@ -56,19 +73,29 @@ const HeaderComponent = ({ empData }) => {
           <span className={`material-symbols-outlined ${styles.clockIcon}`}>
             calendar_today
           </span>
-          <span>{now.format("ddd, MMM D • h:mm A")}</span>
+          <span>
+            {now ? now.format("ddd, MMM D • h:mm A") : "—"}
+          </span>
         </div>
 
-        <div className={styles.statusPill}>
-          <span
-            className={`${styles.statusDot} ${
-              onDuty ? "" : styles.statusDotOff
-            }`}
-          />
-          <span>{onDuty ? "On Duty" : "Off Duty"}</span>
-        </div>
+        {dutyLoading || !empData?.id ? (
+          <StatusPillSkeleton />
+        ) : (
+          <div className={styles.statusPill}>
+            <span
+              className={`${styles.statusDot} ${
+                onDuty ? "" : styles.statusDotOff
+              }`}
+            />
+            <span>{onDuty ? "On Duty" : "Off Duty"}</span>
+          </div>
+        )}
 
-        <UserActions empData={empData} variant="default" />
+        <UserActions
+          empData={empData}
+          isEmployeeLoading={!empData?.id}
+          variant="default"
+        />
       </div>
     </header>
   );

@@ -1,0 +1,271 @@
+.bone {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--hrms-surface-container-high) 0%,
+    var(--hrms-surface-container) 45%,
+    var(--hrms-surface-container-high) 90%
+  );
+  background-size: 200% 100%;
+  animation: hrmsShimmer 1.4s ease-in-out infinite;
+  border-radius: 0.375rem;
+}
+
+.circle {
+  border-radius: 9999px;
+}
+
+.line {
+  height: 0.75rem;
+  width: 100%;
+}
+
+.lineSm {
+  height: 0.625rem;
+  width: 100%;
+}
+
+.lineLg {
+  height: 1.25rem;
+  width: 100%;
+}
+
+.block {
+  width: 100%;
+  min-height: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+    background: var(--hrms-surface-container-high);
+  }
+}
+
+@keyframes hrmsShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Table rows */
+.skelRow td {
+  vertical-align: middle;
+}
+
+.cellStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.avatarCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+}
+
+.actionsCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  width: 100%;
+}
+
+.actionBtn {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+/* Metric cards */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--hrms-space-md);
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .metricsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .metricsGrid.cols4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .metricsGrid.cols5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hrms-space-sm);
+  padding: var(--hrms-space-lg);
+  border-radius: 0.75rem;
+  background: var(--hrms-surface-container-lowest);
+  box-shadow: var(--hrms-shadow-sm);
+  min-height: 8.5rem;
+}
+
+.metricTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--hrms-space-sm);
+}
+
+.metricIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.metricLabel {
+  width: 45%;
+  margin-bottom: 0.5rem;
+}
+
+.metricValue {
+  width: 55%;
+  height: 1.75rem;
+}
+
+.metricFooter {
+  width: 70%;
+  margin-top: auto;
+}
+
+.progress {
+  width: 100%;
+  height: 0.375rem;
+  border-radius: 9999px;
+}
+
+/* Profile blocks */
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: var(--hrms-space-md);
+  min-width: 0;
+}
+
+.profileAvatar {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+}
+
+.profileAvatarSm {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+}
+
+.profileText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.profileName {
+  width: 70%;
+  height: 1rem;
+}
+
+.profileMeta {
+  width: 45%;
+  height: 0.75rem;
+}
+
+/* Chart / page shells */
+.chartBlock {
+  width: 100%;
+  min-height: 280px;
+  height: clamp(260px, 42vw, 360px);
+  border-radius: 0.75rem;
+}
+
+.pageShell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hrms-space-lg);
+  width: 100%;
+}
+
+.shellHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shellTitle {
+  width: min(16rem, 55%);
+  height: 1.75rem;
+}
+
+.shellSubtitle {
+  width: min(28rem, 80%);
+  height: 0.875rem;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 6.5rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 9999px;
+  background: var(--hrms-surface-container-low);
+}
+
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+}
+
+.statusLabel {
+  width: 3.5rem;
+  height: 0.625rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
