@@ -50,6 +50,17 @@ const AttendanceEditComponent = ({ attendId }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [userList, setUserList] = useState([]);
+  const [employeeJobType, setEmployeeJobType] = useState("fullTime");
+
+  const getRequiredJobHour = (jobType) => {
+    if (jobType === "partTime") return "04:00:00";
+    return "09:00:00";
+  };
+
+  const isEarlyOut = (timeDifference, jobType) => {
+    if (!timeDifference) return null;
+    return timeDifference < getRequiredJobHour(jobType);
+  };
 
   useEffect(() => {
     const getUserData = async () => {
@@ -66,6 +77,7 @@ const AttendanceEditComponent = ({ attendId }) => {
         return {
           label: item.name,
           value: item.supabase_user_id,
+          jobType: item.job_type || "fullTime",
         };
       });
       setUserList(users);
@@ -86,6 +98,9 @@ const AttendanceEditComponent = ({ attendId }) => {
       );
       const result = await response.json();
       if (response?.status === 200) {
+        setEmployeeJobType(
+          result?.data?.[0]?.employees?.job_type || "fullTime"
+        );
         reset({
           name: result?.data?.[0]?.employees?.name || "",
           checkin_time: moment
@@ -132,6 +147,11 @@ const AttendanceEditComponent = ({ attendId }) => {
       );
     }
 
+    const jobType =
+      attendId
+        ? employeeJobType
+        : name?.jobType || employeeJobType || "fullTime";
+
     if (attendId) {
       let timeDifference = null;
       if (dbCheckinTime && dbCheckoutTime) {
@@ -142,11 +162,7 @@ const AttendanceEditComponent = ({ attendId }) => {
         checkin_time: dbCheckinTime,
         checkout_time: dbCheckoutTime,
         total_hour: timeDifference,
-        early_out: timeDifference
-          ? timeDifference >= "09:00:00"
-            ? false
-            : true
-          : null,
+        early_out: isEarlyOut(timeDifference, jobType),
       };
       const response = await fetch(
         `/api/attendance/upsert?attendId=${attendId}`,
@@ -198,11 +214,7 @@ const AttendanceEditComponent = ({ attendId }) => {
         checkin_time: dbCheckinTime,
         checkout_time: dbCheckoutTime,
         total_hour: timeDifference,
-        early_out: timeDifference
-          ? timeDifference >= "09:00:00"
-            ? false
-            : true
-          : null,
+        early_out: isEarlyOut(timeDifference, jobType),
       };
       const response = await fetch("/api/attendance/upsert", {
         method: "POST",
@@ -376,13 +388,18 @@ const AttendanceEditComponent = ({ attendId }) => {
                             }
                           : null
                       }
-                      onChange={(val) =>
+                      onChange={(val) => {
+                        setEmployeeJobType(val?.jobType || "fullTime");
                         setValue(
                           "name",
-                          { value: val?.value, label: val?.label },
+                          {
+                            value: val?.value,
+                            label: val?.label,
+                            jobType: val?.jobType || "fullTime",
+                          },
                           { shouldValidate: true }
-                        )
-                      }
+                        );
+                      }}
                       options={userList}
                       styles={selectStyles}
                       menuPortalTarget={

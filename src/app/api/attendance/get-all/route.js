@@ -61,7 +61,7 @@ export async function GET(req) {
         total_hour, 
         early_out,
         supabase_user_id,
-        employees(name)
+        employees(name, job_type)
       `
       )
       .order("checkin_time", { ascending: false });
