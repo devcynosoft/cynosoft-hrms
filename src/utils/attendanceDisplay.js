@@ -50,11 +50,18 @@ export const formatSecondsToHm = (totalSeconds) => {
   };
 };
 
-/** True when completed hours are below the job-type requirement */
+/** Early-out grace in seconds from NEXT_PUBLIC_EARLY_OUT_GRACE_MINUTES (default 5). */
+export const getEarlyOutGraceSeconds = () => {
+  const minutes = Number(process.env.NEXT_PUBLIC_EARLY_OUT_GRACE_MINUTES);
+  const safeMinutes = Number.isFinite(minutes) && minutes >= 0 ? minutes : 5;
+  return safeMinutes * 60;
+};
+
+/** True when completed hours are below the job-type requirement (minus grace). */
 export const isEarlyOutHours = (hourStr, requiredHours = 9) => {
   const seconds = parseHourToSeconds(hourStr);
   if (seconds <= 0) return false;
-  return seconds < requiredHours * 3600;
+  return seconds < requiredHours * 3600 - getEarlyOutGraceSeconds();
 };
 
 export const parseTotalHoursToProgress = (hourStr, requiredHours = 9) => {

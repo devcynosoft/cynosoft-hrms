@@ -9,6 +9,10 @@ import { useRouter } from "next/navigation";
 import TimePicker from "react-time-picker";
 import moment from "moment";
 import calculateTimeDifference from "@/utils/timeDifference";
+import {
+  getRequiredHours,
+  isEarlyOutHours,
+} from "@/utils/attendanceDisplay";
 import DatePicker from "react-datepicker";
 import Image from "next/image";
 import ButtonLoader from "../ButtonLoader.jsx";
@@ -52,14 +56,9 @@ const AttendanceEditComponent = ({ attendId }) => {
   const [userList, setUserList] = useState([]);
   const [employeeJobType, setEmployeeJobType] = useState("fullTime");
 
-  const getRequiredJobHour = (jobType) => {
-    if (jobType === "partTime") return "04:00:00";
-    return "09:00:00";
-  };
-
   const isEarlyOut = (timeDifference, jobType) => {
     if (!timeDifference) return null;
-    return timeDifference < getRequiredJobHour(jobType);
+    return isEarlyOutHours(timeDifference, getRequiredHours(jobType));
   };
 
   useEffect(() => {

@@ -1,6 +1,10 @@
 import { supabase } from "@/utils/supabaseClient";
 import calculateTimeDifference from "@/utils/timeDifference";
 import isTokenValid from "@/utils/tokenValidation";
+import {
+  getRequiredHours,
+  isEarlyOutHours,
+} from "@/utils/attendanceDisplay";
 import axios from "axios";
 
 export async function PATCH(req) {
@@ -51,14 +55,7 @@ export async function PATCH(req) {
       .single();
 
     const jobType = empRecord?.job_type;
-    let jobHour;
-    if (jobType === "fullTime") {
-      jobHour = "09:00:00";
-    } else if (jobType === "partTime") {
-      jobHour = "04:00:00";
-    } else {
-      jobHour = "09:00:00"; // explicit safe default
-    }
+    const requiredHours = getRequiredHours(jobType);
 
     const { data: attendanceData, error: fetchError } = await supabase
       .from("attendance")
@@ -71,20 +68,12 @@ export async function PATCH(req) {
       const timeDifference = calculateTimeDifference(
         attendanceData?.checkin_time
       );
-      const parseHmsToSeconds = (value) => {
-        const [h = 0, m = 0, s = 0] = String(value || "0:0:0")
-          .split(":")
-          .map(Number);
-        return h * 3600 + m * 60 + s;
-      };
-      const workedSeconds = parseHmsToSeconds(timeDifference);
-      const requiredSeconds = parseHmsToSeconds(jobHour);
       const { data: updateData, error: updateError } = await supabase
         .from("attendance")
         .update({
           checkout_time: currentTime,
           total_hour: timeDifference,
-          early_out: workedSeconds < requiredSeconds,
+          early_out: isEarlyOutHours(timeDifference, requiredHours),
         })
         .eq("id", attendanceData?.id);
       if (updateError) {
